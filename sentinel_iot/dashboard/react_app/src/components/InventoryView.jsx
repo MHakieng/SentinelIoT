@@ -15,18 +15,28 @@ const gaugeData = [
 const COLORS = ['var(--neon-pink)', 'rgba(255,255,255,0.05)']
 
 const InventoryView = ({ devices, onSelectDevice, loading = false, error = null }) => {
+  const totalDevices = devices.length
+  const highRiskCount = devices.filter(d => d.status === 'High Risk').length
+  const openPortsAvg = totalDevices > 0 ? Math.round(devices.reduce((acc, d) => acc + (Array.isArray(d.open_ports) ? d.open_ports.length : 0), 0) / totalDevices) : 0
+  const avgRisk = totalDevices > 0 ? Math.round(devices.reduce((acc, d) => acc + Number(d.risk_score || 0), 0) / totalDevices) : 0
+  
+  const dynamicGaugeData = [
+    { name: 'Risk', value: avgRisk },
+    { name: 'Safe', value: 100 - avgRisk }
+  ]
+
   return (
     <div className="fade-in">
-      {/* Fortexa-inspired Top Widgets */}
+      {/* SentinelIoT Contextualized Widgets */}
       <div className="dashboard-widgets-container">
         <div className="attack-surface-cards">
           
           <div className="widget-card">
             <div className="widget-icon-box" style={{ background: 'rgba(192, 132, 252, 0.15)', boxShadow: '0 0 12px rgba(192, 132, 252, 0.3)' }}>
-              <Bug size={20} color="var(--neon-purple)" />
+              <ShieldAlert size={20} color="var(--neon-purple)" />
             </div>
-            <div className="widget-value">125%</div>
-            <div className="widget-label">Total Threats</div>
+            <div className="widget-value">{highRiskCount}</div>
+            <div className="widget-label">Kritik Riskli Cihaz</div>
             <div className="widget-chart-wrapper">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={sparklineData1}>
@@ -38,10 +48,10 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
 
           <div className="widget-card">
             <div className="widget-icon-box" style={{ background: 'rgba(34, 211, 238, 0.15)', boxShadow: '0 0 12px rgba(34, 211, 238, 0.3)' }}>
-              <Layout size={20} color="var(--neon-cyan)" />
+              <Monitor size={20} color="var(--neon-cyan)" />
             </div>
-            <div className="widget-value">17%</div>
-            <div className="widget-label">Video file risk</div>
+            <div className="widget-value">{totalDevices}</div>
+            <div className="widget-label">Aktif Host / Cihaz</div>
             <div className="widget-chart-wrapper">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={sparklineData2}>
@@ -53,10 +63,10 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
 
           <div className="widget-card">
             <div className="widget-icon-box" style={{ background: 'rgba(251, 146, 60, 0.15)', boxShadow: '0 0 12px rgba(251, 146, 60, 0.3)' }}>
-              <FileImage size={20} color="var(--neon-orange)" />
+              <Network size={20} color="var(--neon-orange)" />
             </div>
-            <div className="widget-value">46%</div>
-            <div className="widget-label">Image file risk</div>
+            <div className="widget-value">{openPortsAvg}</div>
+            <div className="widget-label">Ort. Açık Servis</div>
             <div className="widget-chart-wrapper">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={sparklineData3}>
@@ -68,10 +78,10 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
 
           <div className="widget-card">
             <div className="widget-icon-box" style={{ background: 'rgba(217, 70, 239, 0.15)', boxShadow: '0 0 12px rgba(217, 70, 239, 0.3)' }}>
-              <FileText size={20} color="var(--neon-pink)" />
+              <ShieldCheck size={20} color="var(--neon-pink)" />
             </div>
-            <div className="widget-value">29%</div>
-            <div className="widget-label">Docs file risk</div>
+            <div className="widget-value">{totalDevices - highRiskCount}</div>
+            <div className="widget-label">İzlenen Normal Cihazlar</div>
             <div className="widget-chart-wrapper">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={sparklineData4}>
@@ -84,11 +94,11 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
         </div>
 
         <div className="gauge-card">
-          <div className="gauge-title">Risk Score</div>
+          <div className="gauge-title">Ağ Risk Skoru</div>
           <ResponsiveContainer width="100%" height={140}>
             <PieChart>
               <Pie
-                data={gaugeData}
+                data={dynamicGaugeData}
                 cx="50%"
                 cy="100%"
                 startAngle={180}
@@ -99,15 +109,15 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
                 dataKey="value"
                 stroke="none"
               >
-                {gaugeData.map((entry, index) => (
+                {dynamicGaugeData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
             </PieChart>
           </ResponsiveContainer>
           <div style={{ position: 'absolute', bottom: '20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Score</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#fff' }}>70%</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ortalama Risk</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#fff' }}>{avgRisk}%</div>
           </div>
         </div>
       </div>
