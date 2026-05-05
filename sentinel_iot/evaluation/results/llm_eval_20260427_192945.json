@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-04-27T16:29:45+00:00",
+  "case_file": "evaluation\\cases\\real_data_cases.json",
+  "provider_summary": "gemini:gemini-1.5-pro",
+  "data_summary": {
+    "total_devices": 1,
+    "devices_with_cves": 0,
+    "devices_with_anomalies": 1,
+    "devices_with_risk_history": 1,
+    "total_cve_entries": 0
+  },
+  "notes": [
+    "No recorded CVE-bearing services were found in the current project database."
+  ],
+  "results": [
+    {
+      "case": {
+        "case_id": "device_analysis__10_116_63_213",
+        "task_type": "device_analysis",
+        "source_kind": "real_project_data",
+        "input_payload": {
+          "device_ip": "10.116.63.213",
+          "include_sections": [
+            "risk_explanation",
+            "anomaly_summary",
+            "next_actions"
+          ]
+        },
+        "grounding_preview": {
+          "risk_score": 24.42,
+          "status": "Safe",
+          "vuln_component": 37.0,
+          "anomaly_component": 0.0,
+          "total_cves": 0,
+          "open_service_count": 5,
+          "risk_history_count": 43,
+          "anomaly_count": 37,
+          "monitor_runtime_context_used": true
+        },
+        "expected_strengths": [
+          "Uses the stored risk score, status, and risk breakdown to explain current device risk.",
+          "Keeps the tone calm and operational rather than conversational.",
+          "Stays grounded in the recorded device context and avoids unsupported claims.",
+          "Does not invent CVE-related risk evidence when no CVEs are recorded.",
+          "Summarizes recent anomaly evidence without overclaiming attack certainty.",
+          "Next actions remain practical: verification, service review, monitoring, or containment-oriented steps."
+        ],
+        "context_notes": [
+          "Real project device record for 10.116.63.213.",
+          "Open services recorded: 5.",
+          "Total CVEs recorded on device: 0.",
+          "Recent anomaly logs available: 37.",
+          "Risk history points available: 43."
+        ]
+      },
+      "outcome": {
+        "status": "error",
+        "error_type": "ProviderExecutionError",
+        "error_message": "LLM provider returned HTTP 404: {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"models/gemini-1.5-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n"
+      }
+    }
+  ]
+}

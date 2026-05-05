@@ -1,0 +1,146 @@
+# SentinelIoT LLM Evaluation Results
+
+- Generated at: `2026-04-27T16:55:21+00:00`
+- Case file: `evaluation\cases\real_data_cases.json`
+- Provider: `gemini:gemini-2.5-flash`
+- Manual rubric reference: `evaluation\review_rubric.md`
+
+## Data Coverage
+
+```json
+{
+  "total_devices": 1,
+  "devices_with_cves": 0,
+  "devices_with_anomalies": 1,
+  "devices_with_risk_history": 1,
+  "total_cve_entries": 0
+}
+```
+
+## Case Notes
+
+- No recorded CVE-bearing services were found in the current project database.
+
+## Case Reviews
+
+### device_analysis__10_116_63_213
+
+- Task type: `device_analysis`
+- Source kind: `real_project_data`
+
+Expected checkpoints:
+- Uses the stored risk score, status, and risk breakdown to explain current device risk.
+- Keeps the tone calm and operational rather than conversational.
+- Stays grounded in the recorded device context and avoids unsupported claims.
+- Does not invent CVE-related risk evidence when no CVEs are recorded.
+- Summarizes recent anomaly evidence without overclaiming attack certainty.
+- Next actions remain practical: verification, service review, monitoring, or containment-oriented steps.
+
+Input payload:
+```json
+{
+  "device_ip": "10.116.63.213",
+  "include_sections": [
+    "risk_explanation",
+    "anomaly_summary",
+    "next_actions"
+  ]
+}
+```
+
+Grounding preview:
+```json
+{
+  "risk_score": 24.42,
+  "status": "Safe",
+  "vuln_component": 37.0,
+  "anomaly_component": 0.0,
+  "total_cves": 0,
+  "open_service_count": 5,
+  "risk_history_count": 43,
+  "anomaly_count": 37,
+  "monitor_runtime_context_used": true
+}
+```
+
+Context notes:
+- Real project device record for 10.116.63.213.
+- Open services recorded: 5.
+- Total CVEs recorded on device: 0.
+- Recent anomaly logs available: 37.
+- Risk history points available: 43.
+
+Model outcome:
+```json
+{
+  "status": "ok",
+  "response": {
+    "device_ip": "10.116.63.213",
+    "generated_at": "2026-04-27T16:55:21Z",
+    "sections": {
+      "risk_explanation": "This device currently has a low risk score of 24.42 and is classified as 'Safe'. The primary contributor to its risk is service exposure (37.0), with five open ports including MSRPC, NetBIOS, SMB, MySQL, and a Uvicorn HTTP server. Notably, the MySQL service is flagged as 'unauthorized'. There are no known CVEs associated with the device's services. The anomaly component of the risk score is currently zero, indicating no active anomalies are contributing to the present risk.",
+      "anomaly_summary": "Several statistical anomalies were logged for this device between 19:10:02 and 19:12:56 on 2026-04-19, with scores ranging from 0.501 to 0.508. However, these recent anomalies are not currently reflected in the active anomaly component, which is 0.0.",
+      "next_actions": [
+        "Investigate the 'unauthorized' status of the MySQL service on port 3306 to determine its legitimacy and access controls.",
+        "Review the necessity of exposed MSRPC (135/tcp), NetBIOS (139/tcp), and SMB (445/tcp) services and restrict access if not required.",
+        "Examine the recent statistical anomalies logged on 2026-04-19 to understand their nature and potential implications.",
+        "Verify the purpose and intended exposure of the Uvicorn HTTP service on port 8000."
+      ]
+    },
+    "grounding_summary": {
+      "risk_score": 24.42,
+      "status": "Safe",
+      "vuln_component": 37.0,
+      "anomaly_component": 0.0,
+      "total_cves": 0,
+      "open_service_count": 5,
+      "recent_anomaly_count": 8,
+      "risk_history_points": 8,
+      "latest_risk_timestamp": "2026-04-19 19:38:28",
+      "latest_anomaly_timestamp": "2026-04-19 19:12:56",
+      "monitor_runtime_status": "evaluation_unavailable"
+    },
+    "evidence_used": [
+      {
+        "source": "device_inventory",
+        "detail": "Risk score is 24.42 with status Safe."
+      },
+      {
+        "source": "device_inventory",
+        "detail": "Device has 5 recorded services and 0 total CVEs."
+      },
+      {
+        "source": "risk_breakdown",
+        "detail": "Exposure component is 37.0 and monitoring component is 0.0."
+      },
+      {
+        "source": "risk_history",
+        "detail": "Latest recorded risk history point is 2026-04-19 19:38:28."
+      },
+      {
+        "source": "anomaly_logs",
+        "detail": "Most recent anomaly log is 'statistical_anomaly' at 2026-04-19 19:12:56 with score 0.502."
+      }
+    ],
+    "warnings": [
+      "Live monitor runtime status is unavailable, so real-time monitor state should not be treated as evidence."
+    ],
+    "limitations": [
+      "The device's MAC address and vendor are unknown.",
+      "Version information for several open services is unavailable.",
+      "Live monitor runtime status is unavailable, preventing real-time monitor state from being used as evidence."
+    ]
+  }
+}
+```
+
+Manual review:
+| Dimension | Score (1-5) | Reviewer Notes |
+| --- | --- | --- |
+| groundedness |  |  |
+| correctness |  |  |
+| usefulness |  |  |
+| clarity |  |  |
+| actionability |  |  |
+| hallucination_risk |  |  |
+| calm_product_tone |  |  |

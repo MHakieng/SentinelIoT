@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-04-27T16:51:36+00:00",
+  "case_file": "evaluation\\cases\\real_data_cases.json",
+  "provider_summary": "gemini:gemini-2.5-flash",
+  "data_summary": {
+    "total_devices": 1,
+    "devices_with_cves": 0,
+    "devices_with_anomalies": 1,
+    "devices_with_risk_history": 1,
+    "total_cve_entries": 0
+  },
+  "notes": [
+    "No recorded CVE-bearing services were found in the current project database."
+  ],
+  "results": [
+    {
+      "case": {
+        "case_id": "device_analysis__10_116_63_213",
+        "task_type": "device_analysis",
+        "source_kind": "real_project_data",
+        "input_payload": {
+          "device_ip": "10.116.63.213",
+          "include_sections": [
+            "risk_explanation",
+            "anomaly_summary",
+            "next_actions"
+          ]
+        },
+        "grounding_preview": {
+          "risk_score": 24.42,
+          "status": "Safe",
+          "vuln_component": 37.0,
+          "anomaly_component": 0.0,
+          "total_cves": 0,
+          "open_service_count": 5,
+          "risk_history_count": 43,
+          "anomaly_count": 37,
+          "monitor_runtime_context_used": true
+        },
+        "expected_strengths": [
+          "Uses the stored risk score, status, and risk breakdown to explain current device risk.",
+          "Keeps the tone calm and operational rather than conversational.",
+          "Stays grounded in the recorded device context and avoids unsupported claims.",
+          "Does not invent CVE-related risk evidence when no CVEs are recorded.",
+          "Summarizes recent anomaly evidence without overclaiming attack certainty.",
+          "Next actions remain practical: verification, service review, monitoring, or containment-oriented steps."
+        ],
+        "context_notes": [
+          "Real project device record for 10.116.63.213.",
+          "Open services recorded: 5.",
+          "Total CVEs recorded on device: 0.",
+          "Recent anomaly logs available: 37.",
+          "Risk history points available: 43."
+        ]
+      },
+      "outcome": {
+        "status": "ok",
+        "response": {
+          "device_ip": "10.116.63.213",
+          "generated_at": "2026-04-27T16:51:36Z",
+          "sections": {
+            "risk_explanation": "The device currently has a risk score of 24.42 and is categorized as \"Safe\". It exposes 5 services, including MSRPC (port 135), NetBIOS-SSN (port 139), Microsoft-DS (port 445), MySQL (port 3306), and Uvicorn HTTP (port 8000). There are no known CVEs associated with the device. The risk breakdown indicates that the vulnerability component contributes 37.0 to the score, while the anomaly component is currently 0.0.",
+            "anomaly_summary": "Recent anomaly logs indicate several statistical anomalies detected on the device. The most recent anomaly occurred on 2026-04-19 at 19:12:56, with a score of 0.502, related to a flow from 80.158.110.84:443 to the device's port 64701. Other statistical anomalies were logged shortly before this, involving various external IP addresses communicating with different high-numbered ports on the device. While these anomalies were logged, they are not currently contributing to the device's active anomaly risk component.",
+            "next_actions": [
+              "Investigate the purpose and necessity of the open services (ports 135, 139, 445, 3306, 8000) on this IoT device, especially the MySQL service with 'unauthorized' extra info.",
+              "Review the recent statistical anomalies to understand their nature and determine if they represent legitimate traffic or potential suspicious activity.",
+              "Verify the device's identity and vendor information, as it is currently listed as 'Unknown', to improve asset management and vulnerability assessment.",
+              "Address the 'evaluation_unavailable' status for the live monitor runtime to ensure continuous monitoring and accurate anomaly detection."
+            ]
+          },
+          "grounding_summary": {
+            "risk_score": 24.42,
+            "status": "Safe",
+            "vuln_component": 37.0,
+            "anomaly_component": 0.0,
+            "total_cves": 0,
+            "open_service_count": 5,
+            "recent_anomaly_count": 8,
+            "risk_history_points": 8,
+            "latest_risk_timestamp": "2026-04-19 19:38:28",
+            "latest_anomaly_timestamp": "2026-04-19 19:12:56",
+            "monitor_runtime_status": "evaluation_unavailable"
+          },
+          "evidence_used": [
+            {
+              "source": "device_inventory",
+              "detail": "Risk score is 24.42 with status Safe."
+            },
+            {
+              "source": "device_inventory",
+              "detail": "Device has 5 recorded services and 0 total CVEs."
+            },
+            {
+              "source": "risk_breakdown",
+              "detail": "Exposure component is 37.0 and monitoring component is 0.0."
+            },
+            {
+              "source": "risk_history",
+              "detail": "Latest recorded risk history point is 2026-04-19 19:38:28."
+            },
+            {
+              "source": "anomaly_logs",
+              "detail": "Most recent anomaly log is 'statistical_anomaly' at 2026-04-19 19:12:56 with score 0.502."
+            }
+          ],
+          "warnings": [],
+          "limitations": [
+            "Device vendor and MAC address are unknown.",
+            "Live monitor runtime status is unavailable, impacting real-time monitoring insights."
+          ]
+        }
+      }
+    }
+  ]
+}

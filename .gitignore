@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest-tmp/
+.venv/
+venv/
+
+# Runtime data
+*.db
+*.sqlite
+*.sqlite3
+*.pcap
+*.pcapng
+live_test_*.pcap
+capture.pcap
+integration_test.pcap
+
+# Frontend
+node_modules/
+dist/
+
+# Environment and local editor files
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+.DS_Store

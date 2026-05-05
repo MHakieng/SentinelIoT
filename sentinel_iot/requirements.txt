@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+scapy
+pandas
+scikit-learn
+sqlalchemy
+pydantic
+requests
+python-multipart
+python-nmap
+joblib
+pytest
+httpx
