@@ -43,7 +43,7 @@ Gemini icin:
 
 ```text
 SENTINEL_LLM_PROVIDER=gemini
-SENTINEL_LLM_API_KEY=...
+SENTINEL_LLM_API_KEY=<your_api_key>
 SENTINEL_LLM_MODEL=gemini-2.0-flash
 SENTINEL_LLM_TIMEOUT_SECONDS=20
 ```
