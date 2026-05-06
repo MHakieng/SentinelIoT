@@ -8,7 +8,7 @@ from sentinel_iot.ml.anomaly_model import AnomalyModel
 from sentinel_iot.ml.generate_dataset import generate_iot_traffic
 
 
-def test_full_pipeline_logic():
+def test_full_pipeline_logic(tmp_path):
     """Validate the backend pipeline: traffic -> anomaly -> risk."""
     mock_scan_data = [
         {"port": 80, "service": "http", "version": "2.4.41", "cpe": "cpe:/a:apache:http_server:2.4.41"}
@@ -16,7 +16,7 @@ def test_full_pipeline_logic():
 
     flow_features = generate_iot_traffic(num_samples=1, anomaly_ratio=1.0)[0]
 
-    model = AnomalyModel()
+    model = AnomalyModel(model_path=str(tmp_path / "anomaly_model.joblib"))
     model.train(generate_iot_traffic(num_samples=200, anomaly_ratio=0.1))
 
     result = model.detect_anomaly(flow_features)
@@ -39,7 +39,7 @@ def test_api_concurrency_stress():
     def make_request():
         try:
             resp1 = client.get("/devices")
-            resp2 = client.get("/status")
+            resp2 = client.get("/scanner/jobs")
             results.append(resp1.status_code)
             results.append(resp2.status_code)
         except Exception as exc:

@@ -18,10 +18,10 @@ def test_api_flow():
         return
 
     # 2. Trigger Scan
-    print("\n[2] Testing /scan (Trigger)...")
+    print("\n[2] Testing /scanner/scans (Trigger)...")
     try:
         # Scan local subnet (simulated or real)
-        r = requests.post(f"{BASE_URL}/scan", params={"target_range": "127.0.0.1/32"})
+        r = requests.post(f"{BASE_URL}/scanner/scans", params={"target_range": "127.0.0.1/32"})
         assert r.status_code == 200
         job_id = r.json()["job_id"]
         print(f"    OK: Job ID {job_id}")
@@ -30,9 +30,9 @@ def test_api_flow():
         return
 
     # 3. Check Job Status (Wait for completion)
-    print("\n[3] Testing /status/{job_id}...")
+    print("\n[3] Testing /scanner/jobs/{job_id}...")
     for _ in range(10):
-        r = requests.get(f"{BASE_URL}/status/{job_id}")
+        r = requests.get(f"{BASE_URL}/scanner/jobs/{job_id}")
         status = r.json().get("status")
         progress = r.json().get("progress")
         print(f"    - Status: {status} ({progress}%)")
@@ -54,8 +54,8 @@ def test_api_flow():
     print(f"    OK: Metrics available (F1 Score: {r.json().get('synthetic_training_metrics', {}).get('f1_score')})")
 
     # 6. Start Monitor
-    print("\n[6] Testing /test-live/start...")
-    r = requests.post(f"{BASE_URL}/test-live/start", params={"duration": 2})
+    print("\n[6] Testing /monitor/live/start...")
+    r = requests.post(f"{BASE_URL}/monitor/live/start", params={"duration": 2})
     assert r.status_code == 200
     monitor_job_id = r.json()["job_id"]
     print(f"    OK: Monitor Job ID {monitor_job_id}")
@@ -64,14 +64,14 @@ def test_api_flow():
     time.sleep(5)
 
     # 7. Check Live Data
-    print("\n[7] Testing /live-packets & /live-flows...")
-    pkts = requests.get(f"{BASE_URL}/live-packets").json()
-    flows = requests.get(f"{BASE_URL}/live-flows").json()
+    print("\n[7] Testing /monitor/packets & /monitor/flows...")
+    pkts = requests.get(f"{BASE_URL}/monitor/packets").json()
+    flows = requests.get(f"{BASE_URL}/monitor/flows").json()
     print(f"    OK: Captured {len(pkts)} packets and {len(flows)} flows so far.")
 
     # 8. Stop Monitor
-    print("\n[8] Testing /test-live/stop...")
-    r = requests.post(f"{BASE_URL}/test-live/stop")
+    print("\n[8] Testing /monitor/live/stop...")
+    r = requests.post(f"{BASE_URL}/monitor/live/stop")
     assert r.status_code == 200
     print("    OK: Stop signal sent.")
 

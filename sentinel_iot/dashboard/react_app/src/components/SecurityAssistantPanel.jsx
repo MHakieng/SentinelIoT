@@ -61,7 +61,6 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
 
       setAnalysis(data)
     } catch (err) {
-      console.error('Failed to generate global assistant analysis', err)
       if (requestRef.current !== requestId || device.ip !== currentIp) {
         return
       }

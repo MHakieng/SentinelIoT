@@ -4,7 +4,7 @@ import uuid
 import os
 import pytest
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://127.0.0.1:8000"
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SENTINEL_RUN_LIVE_API_TESTS") != "1",
@@ -13,7 +13,7 @@ pytestmark = pytest.mark.skipif(
 
 def test_scan_job():
     print("\n[+] Testing Scan Job...")
-    response = requests.post(f"{BASE_URL}/scan")
+    response = requests.post(f"{BASE_URL}/scanner/scans")
     if response.status_code != 200:
         print(f"[-] Failed to start scan: {response.text}")
         return
@@ -23,7 +23,7 @@ def test_scan_job():
     
     # Poll status
     for _ in range(10):
-        status_resp = requests.get(f"{BASE_URL}/status/{job_id}")
+        status_resp = requests.get(f"{BASE_URL}/scanner/jobs/{job_id}")
         status_data = status_resp.json()
         print(f"[*] Job Status: {status_data['status']}")
         if status_data['status'] in ['completed', 'failed']:
@@ -44,7 +44,7 @@ def test_train_job():
 def test_invalid_job():
     print("\n[+] Testing Invalid Job ID...")
     fake_id = str(uuid.uuid4())
-    response = requests.get(f"{BASE_URL}/status/{fake_id}")
+    response = requests.get(f"{BASE_URL}/scanner/jobs/{fake_id}")
     print(f"[*] Response for fake ID: {response.status_code} (Expect 404)")
     assert response.status_code == 404
 

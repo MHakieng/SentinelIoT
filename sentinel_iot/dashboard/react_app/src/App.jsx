@@ -26,10 +26,59 @@ import PacketListView from './components/PacketListView'
 import FlowSummaryView from './components/FlowSummaryView'
 import TopologyView from './components/TopologyView'
 import SecurityAssistantPanel from './components/SecurityAssistantPanel'
+import { clearAllDeviceAnalysis } from './lib/deviceAnalysisClient'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
 const EMPTY_TOPOLOGY = { nodes: [], links: [] }
+const API_ENDPOINTS = {
+  devices: '/devices',
+  metrics: '/metrics',
+  scanStatus: '/scanner/status',
+  scanJobs: '/scanner/jobs',
+  scans: '/scanner/scans',
+  monitorPackets: '/monitor/packets',
+  monitorFlows: '/monitor/flows',
+  monitorHistory: '/monitor/history',
+  monitorTopology: '/monitor/topology',
+  monitorLiveStart: '/monitor/live/start',
+  monitorLiveStatus: '/monitor/live/status',
+  monitorLiveStop: '/monitor/live/stop',
+}
+const DEVICE_REFRESH_MS = 15000
+const METRICS_REFRESH_MS = 20000
+const TRAFFIC_REFRESH_MS = 4000
+const HISTORY_REFRESH_MS = 10000
+const DEFAULT_TOPOLOGY_REFRESH_MS = 10000
+const MONITOR_STATUS_REFRESH_MS = 2500
+const SCAN_STATUS_REFRESH_MS = 1200
+const LIVE_CAPTURE_WINDOW_SECONDS = 10
+const NBAIOT_BENCHMARK_ROWS = [
+  { model: 'Random Forest', accuracy: 0.999989, precision: 1.0, recall: 0.999988, f1: 0.999994, fpr: 0.0, fnr: 0.000012 },
+  { model: 'Extra Trees', accuracy: 0.999983, precision: 1.0, recall: 0.999981, f1: 0.999991, fpr: 0.0, fnr: 0.000019 },
+  { model: 'HistGradientBoosting', accuracy: 0.999977, precision: 0.999997, recall: 0.999978, f1: 0.999987, fpr: 0.000029, fnr: 0.000022 },
+  { model: 'Balanced RF', accuracy: 0.999913, precision: 1.0, recall: 0.999826, f1: 0.999913, fpr: 0.0, fnr: 0.000174 },
+  { model: 'Device Split RF', accuracy: 0.998539, precision: 0.998419, recall: 0.999993, f1: 0.999206, fpr: 0.017886, fnr: 0.000007 },
+  { model: 'Isolation Forest 0.15', accuracy: 0.985236, precision: 0.98407, recall: 0.999827, f1: 0.991886, fpr: 0.149999, fnr: 0.000172 },
+  { model: 'Device + Attack Split RF', accuracy: 0.761298, precision: 0.994123, recall: 0.685407, f1: 0.806298, fpr: 0.01103, fnr: 0.314593 },
+  { model: 'Attack Split RF', accuracy: 0.760342, precision: 1.0, recall: 0.680457, f1: 0.803536, fpr: 0.0, fnr: 0.319543 },
+]
+const NBAIOT_KEY_FINDINGS = {
+  sampleCount: '1,772,641',
+  featureCount: 115,
+  normalCount: '172,641',
+  anomalyCount: '1,600,000',
+  randomForestF1: 0.999994,
+  balancedRfF1: 0.999913,
+  deviceSplitF1: 0.999206,
+  attackSplitF1: 0.803536,
+  deviceAttackSplitF1: 0.806298,
+  bestIsolationContamination: '0.15',
+  bestIsolationF1: 0.991886,
+  deviceSplitFpr: 0.017886,
+  leakageFeature: 'HH_jit_L0.01_mean',
+  leakageFeatureF1: 0.958079,
+}
 
 const describeRequestFailure = (err, fallback) => {
   if (!err) {
@@ -100,7 +149,6 @@ const App = () => {
   const [scanProgress, setScanProgress] = useState(0)
   const [scanError, setScanError] = useState(null)
   const [scanNotice, setScanNotice] = useState(null)
-  const [scanJobId, setScanJobId] = useState(null)
 
   const [devicesLoading, setDevicesLoading] = useState(true)
   const [devicesError, setDevicesError] = useState(null)
@@ -120,10 +168,12 @@ const App = () => {
 
   const [topologyData, setTopologyData] = useState(EMPTY_TOPOLOGY)
   const [topologyLoading, setTopologyLoading] = useState(true)
+  const [topologyRefreshing, setTopologyRefreshing] = useState(false)
   const [topologyError, setTopologyError] = useState(null)
+  const [topologyLastUpdated, setTopologyLastUpdated] = useState(null)
+  const [topologyRefreshMs, setTopologyRefreshMs] = useState(DEFAULT_TOPOLOGY_REFRESH_MS)
 
   const [monitorStatus, setMonitorStatus] = useState('idle')
-  const [monitorJobId, setMonitorJobId] = useState(null)
   const [monitorMessage, setMonitorMessage] = useState(null)
   const [monitorActionLoading, setMonitorActionLoading] = useState(false)
   const [monitorError, setMonitorError] = useState(null)
@@ -137,11 +187,10 @@ const App = () => {
 
   const fetchDevices = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/devices`, { timeout: 5000 })
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.devices}`, { timeout: 5000 })
       setDevices(Array.isArray(response.data) ? response.data : [])
       setDevicesError(null)
     } catch (err) {
-      console.error('Failed to fetch devices', err)
       setDevicesError(describeRequestFailure(err, 'Cihaz envanteri yüklenemedi.'))
     } finally {
       setDevicesLoading(false)
@@ -150,11 +199,10 @@ const App = () => {
 
   const fetchMetrics = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/metrics`, { timeout: 5000 })
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.metrics}`, { timeout: 5000 })
       setSystemMetrics(response.data)
       setMetricsError(null)
     } catch (err) {
-      console.error('Failed to fetch metrics', err)
       setMetricsError(describeRequestFailure(err, 'Sistem metrikleri yüklenemedi.'))
     } finally {
       setMetricsLoading(false)
@@ -164,14 +212,13 @@ const App = () => {
   const fetchTraffic = async () => {
     try {
       const [packetResponse, flowResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/live-packets`, { timeout: 5000 }),
-        axios.get(`${API_BASE_URL}/live-flows`, { timeout: 5000 })
+        axios.get(`${API_BASE_URL}${API_ENDPOINTS.monitorPackets}`, { timeout: 5000 }),
+        axios.get(`${API_BASE_URL}${API_ENDPOINTS.monitorFlows}`, { timeout: 5000 })
       ])
       setLivePackets(Array.isArray(packetResponse.data) ? packetResponse.data : [])
       setLiveFlows(Array.isArray(flowResponse.data) ? flowResponse.data : [])
       setTrafficError(null)
     } catch (err) {
-      console.error('Failed to fetch traffic data', err)
       setLivePackets([])
       setLiveFlows([])
       setTrafficError(describeRequestFailure(err, 'Canlı trafik verisi yüklenemedi.'))
@@ -182,11 +229,10 @@ const App = () => {
 
   const fetchTrafficHistory = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/history`, { timeout: 5000 })
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.monitorHistory}`, { timeout: 5000 })
       setTrafficHistory(Array.isArray(response.data) ? response.data : [])
       setHistoryError(null)
     } catch (err) {
-      console.error('Failed to fetch traffic history', err)
       setTrafficHistory([])
       setHistoryError(describeRequestFailure(err, 'Trafik geçmişi yüklenemedi.'))
     } finally {
@@ -194,17 +240,22 @@ const App = () => {
     }
   }
 
-  const fetchTopology = async () => {
+  const fetchTopology = async ({ showLoading = false } = {}) => {
+    if (showLoading) {
+      setTopologyRefreshing(true)
+    }
+
     try {
-      const response = await axios.get(`${API_BASE_URL}/topology`, { timeout: 5000 })
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.monitorTopology}`, { timeout: 5000 })
       setTopologyData(response.data || EMPTY_TOPOLOGY)
       setTopologyError(null)
+      setTopologyLastUpdated(new Date())
     } catch (err) {
-      console.error('Failed to fetch topology', err)
       setTopologyData(EMPTY_TOPOLOGY)
       setTopologyError(describeRequestFailure(err, 'Topoloji verisi yüklenemedi.'))
     } finally {
       setTopologyLoading(false)
+      setTopologyRefreshing(false)
     }
   }
 
@@ -226,7 +277,6 @@ const App = () => {
     const status = runtime?.status || 'idle'
     const failedDevices = Number(runtime?.summary?.failed_devices || 0)
 
-    setScanJobId(runtime?.active_job_id || null)
     setScanLoading(Boolean(runtime?.is_running))
     setScanProgress((current) => (runtime?.is_running ? Math.max(5, current > 99 ? 5 : current) : status === 'completed' ? 100 : 0))
 
@@ -259,7 +309,6 @@ const App = () => {
   const applyMonitorRuntimeState = (runtime) => {
     const status = runtime?.status || 'idle'
     setMonitorStatus(status)
-    setMonitorJobId(runtime?.active_job_id || null)
     setMonitorMessage(runtime?.message || null)
       setMonitorError(status === 'failed' ? runtime?.error || runtime?.message || 'Canlı izleme başarısız oldu.' : null)
   }
@@ -267,13 +316,12 @@ const App = () => {
   const fetchScanRuntimeState = async ({ forceApply = false } = {}) => {
     const requestVersion = scanRuntimeVersionRef.current
     try {
-      const response = await axios.get(`${API_BASE_URL}/scan/status`, { timeout: 5000 })
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.scanStatus}`, { timeout: 5000 })
       if (forceApply || requestVersion === scanRuntimeVersionRef.current) {
         applyScanRuntimeState(response.data)
       }
       return response.data
     } catch (err) {
-      console.error('Failed to fetch scan runtime status', err)
       setScanError((current) => current || describeRequestFailure(err, 'Tarama durumu backend üzerinden yüklenemedi.'))
       return null
     }
@@ -282,13 +330,12 @@ const App = () => {
   const fetchMonitorRuntimeState = async ({ forceApply = false } = {}) => {
     const requestVersion = monitorRuntimeVersionRef.current
     try {
-      const response = await axios.get(`${API_BASE_URL}/test-live/status`, { timeout: 5000 })
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.monitorLiveStatus}`, { timeout: 5000 })
       if (forceApply || requestVersion === monitorRuntimeVersionRef.current) {
         applyMonitorRuntimeState(response.data)
       }
       return response.data
     } catch (err) {
-      console.error('Failed to fetch monitor runtime status', err)
       setMonitorError((current) => current || describeRequestFailure(err, 'Canlı izleme durumu backend üzerinden yüklenemedi.'))
       return null
     }
@@ -297,7 +344,6 @@ const App = () => {
   const handleScanCompletion = async (job) => {
     const failedDevices = Array.isArray(job?.result?.failed_devices) ? job.result.failed_devices : []
     setScanLoading(false)
-    setScanJobId(null)
     setScanProgress(100)
     setScanError(null)
     setScanNotice(
@@ -306,6 +352,7 @@ const App = () => {
         : 'Tarama başarıyla tamamlandı.'
     )
 
+    clearAllDeviceAnalysis()
     await fetchDevices()
     if (activeTab === 'topology') {
       await fetchTopology()
@@ -323,10 +370,9 @@ const App = () => {
 
     const checkStatus = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/status/${jobId}`, { timeout: 3000 })
+        const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.scanJobs}/${jobId}`, { timeout: 3000 })
         const { status, progress } = response.data
 
-        setScanJobId(jobId)
         setScanLoading(status === 'pending' || status === 'running')
         setScanProgress(progress || 0)
 
@@ -336,12 +382,10 @@ const App = () => {
         } else if (status === 'failed') {
           stopStatusPolling()
           setScanLoading(false)
-          setScanJobId(null)
           setScanProgress(0)
           setScanError(`Ayrıntılı tarama hatası: ${formatJobFailure(response.data)}`)
         }
       } catch (err) {
-        console.error('Failed to poll scan status', err)
         stopStatusPolling()
         setScanError(describeRequestFailure(err, 'Tarama durum güncellemeleri kesildi. Backend\'in hâlâ çalıştığını kontrol edin.'))
         await fetchScanRuntimeState()
@@ -352,10 +396,10 @@ const App = () => {
       checkStatus()
     }
 
-    scanPollRef.current = setInterval(checkStatus, 1500)
+    scanPollRef.current = setInterval(checkStatus, SCAN_STATUS_REFRESH_MS)
   }
 
-  const startScan = async () => {
+  const startScan = async ({ targetRange = '', profile = 'vulnerability' } = {}) => {
     stopStatusPolling()
     scanRuntimeVersionRef.current += 1
     setScanLoading(true)
@@ -364,14 +408,18 @@ const App = () => {
     setScanNotice(null)
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/scan`, null, { timeout: 8000 })
+      const params = { profile }
+      const normalizedTarget = targetRange.trim()
+      if (normalizedTarget) {
+        params.target_range = normalizedTarget
+      }
+
+      const response = await axios.post(`${API_BASE_URL}${API_ENDPOINTS.scans}`, null, { params, timeout: 8000 })
       const jobId = response.data.job_id
 
       if (!jobId) {
         throw new Error('Tarama yanıtında job ID eksik')
       }
-
-      setScanJobId(jobId)
 
       if (response.data.status === 'running') {
         setScanNotice(response.data.message || 'Bir tarama zaten çalışıyor.')
@@ -379,7 +427,6 @@ const App = () => {
 
       pollScanJob(jobId, true)
     } catch (err) {
-      console.error('Failed to start scan', err)
       setScanError(describeRequestFailure(err, 'Tarama başlatılamadı.'))
       setScanLoading(false)
       setScanProgress(0)
@@ -393,11 +440,7 @@ const App = () => {
       setMonitorError(null)
 
       if (!monitoringActive) {
-        const response = await axios.post(`${API_BASE_URL}/test-live/start`, null, { params: { duration: 5 }, timeout: 8000 })
-
-        if (response.data.job_id) {
-          setMonitorJobId(response.data.job_id)
-        }
+        const response = await axios.post(`${API_BASE_URL}${API_ENDPOINTS.monitorLiveStart}`, null, { params: { duration: LIVE_CAPTURE_WINDOW_SECONDS }, timeout: 8000 })
 
         const runtime = await fetchMonitorRuntimeState({ forceApply: true })
         if (runtime?.is_running) {
@@ -409,7 +452,7 @@ const App = () => {
           setMonitorError(response.data.message || 'Canlı izleme başlatılamadı.')
         }
       } else {
-        const response = await axios.post(`${API_BASE_URL}/test-live/stop`, null, { timeout: 5000 })
+        const response = await axios.post(`${API_BASE_URL}${API_ENDPOINTS.monitorLiveStop}`, null, { timeout: 5000 })
         const runtime = await fetchMonitorRuntimeState({ forceApply: true })
 
         if (!runtime && response.data.status !== 'stopping' && response.data.status !== 'idle') {
@@ -417,7 +460,6 @@ const App = () => {
         }
       }
     } catch (err) {
-      console.error('Failed to toggle live monitoring', err)
       setMonitorError(describeRequestFailure(err, 'Canlı izleme işlemi başarısız oldu.'))
     } finally {
       setMonitorActionLoading(false)
@@ -433,8 +475,10 @@ const App = () => {
     })
     fetchMonitorRuntimeState()
 
-    const interval = setInterval(fetchDevices, 10000)
+    const interval = setInterval(fetchDevices, DEVICE_REFRESH_MS)
     return () => clearInterval(interval)
+    // Initial bootstrap only; polling callbacks intentionally read current state through refs/service calls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -444,8 +488,10 @@ const App = () => {
     }
 
     fetchMonitorRuntimeState()
-    monitorPollRef.current = setInterval(fetchMonitorRuntimeState, 3000)
+    monitorPollRef.current = setInterval(fetchMonitorRuntimeState, MONITOR_STATUS_REFRESH_MS)
     return () => stopMonitorPolling()
+    // Monitor polling is keyed only by runtime state transitions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monitorStatus])
 
   useEffect(() => {
@@ -454,7 +500,7 @@ const App = () => {
     }
 
     fetchMetrics()
-    const interval = setInterval(fetchMetrics, 15000)
+    const interval = setInterval(fetchMetrics, METRICS_REFRESH_MS)
     return () => clearInterval(interval)
   }, [activeTab])
 
@@ -464,7 +510,7 @@ const App = () => {
     }
 
     fetchTraffic()
-    const interval = setInterval(fetchTraffic, 5000)
+    const interval = setInterval(fetchTraffic, TRAFFIC_REFRESH_MS)
     return () => clearInterval(interval)
   }, [activeTab])
 
@@ -474,7 +520,7 @@ const App = () => {
     }
 
     fetchTrafficHistory()
-    const interval = setInterval(fetchTrafficHistory, 5000)
+    const interval = setInterval(fetchTrafficHistory, HISTORY_REFRESH_MS)
     return () => clearInterval(interval)
   }, [activeTab])
 
@@ -484,9 +530,13 @@ const App = () => {
     }
 
     fetchTopology()
-    const interval = setInterval(fetchTopology, 5000)
-    return () => clearInterval(interval)
-  }, [activeTab])
+    const interval = topologyRefreshMs > 0 ? setInterval(() => fetchTopology(), topologyRefreshMs) : null
+    return () => {
+      if (interval) {
+        clearInterval(interval)
+      }
+    }
+  }, [activeTab, topologyRefreshMs])
 
   useEffect(() => {
     if (!selectedDevice) {
@@ -638,6 +688,141 @@ const App = () => {
           )}
         </div>
       </div>
+
+      <div className="card" style={{ marginTop: '24px', padding: '24px' }}>
+        <div className="section-header" style={{ marginBottom: '18px' }}>
+          <div>
+            <h3 className="flex-row items-center gap-2" style={{ margin: 0 }}>
+              <CheckCircle2 size={18} color="var(--success)" /> Akademik Dogrulama Kanitlari
+            </h3>
+            <div className="section-subtitle" style={{ marginTop: '6px' }}>
+              N-BaIoT benchmark, overfitting riski, genelleme testleri ve leakage analizi final sunumu icin tek yerde ozetlenir.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '14px' }}>
+          {[
+            ['N-BaIoT kayit', NBAIOT_KEY_FINDINGS.sampleCount, 'Processed benchmark satiri'],
+            ['Feature sayisi', NBAIOT_KEY_FINDINGS.featureCount, 'N-BaIoT numeric feature semasi'],
+            ['Normal / Anomaly', `${NBAIOT_KEY_FINDINGS.normalCount} / ${NBAIOT_KEY_FINDINGS.anomalyCount}`, 'Binary benchmark dagilimi'],
+            ['Random split F1', `${(NBAIOT_KEY_FINDINGS.randomForestF1 * 100).toFixed(4)}%`, 'Random Forest en yuksek benchmark'],
+            ['Balanced RF F1', `${(NBAIOT_KEY_FINDINGS.balancedRfF1 * 100).toFixed(4)}%`, 'Dengeli normal/anomaly random split'],
+            ['Device split F1', `${(NBAIOT_KEY_FINDINGS.deviceSplitF1 * 100).toFixed(4)}%`, 'Cihaz bazli genelleme testi'],
+            ['Attack split F1', `${(NBAIOT_KEY_FINDINGS.attackSplitF1 * 100).toFixed(2)}%`, 'Gorulmeyen saldiri ailesi testi'],
+            ['Device+Attack F1', `${(NBAIOT_KEY_FINDINGS.deviceAttackSplitF1 * 100).toFixed(2)}%`, 'Gorulmeyen cihaz + saldiri ailesi'],
+            ['Leakage suspect', NBAIOT_KEY_FINDINGS.leakageFeature, `Tek feature F1 ${(NBAIOT_KEY_FINDINGS.leakageFeatureF1 * 100).toFixed(2)}%`],
+            ['IF best contamination', NBAIOT_KEY_FINDINGS.bestIsolationContamination, `F1 ${(NBAIOT_KEY_FINDINGS.bestIsolationF1 * 100).toFixed(2)}%`],
+          ].map(([label, value, source]) => (
+            <div key={label} className="soft-panel" style={{ padding: '16px' }}>
+              <div className="metric-label">{label}</div>
+              <div style={{ marginTop: '8px', fontWeight: 800, fontSize: '1.05rem' }}>{value}</div>
+              <div className="table-secondary" style={{ marginTop: '4px' }}>{source}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="soft-panel" style={{ marginTop: '16px', padding: '18px', borderColor: 'rgba(45, 212, 191, 0.22)' }}>
+          <div className="metric-label">Akademik yorum</div>
+          <div style={{ marginTop: '8px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+            Random split ve balanced random split model kapasitesini gosterir, fakat genelleme guvenilirligini tek basina kanitlamaz.
+            Attack-family ve device+attack split sonuclari F1 degerini yaklasik 0.80 seviyesine indirerek ezberleme riskini olculebilir
+            hale getirdi. N-BaIoT modeli canli Sentinel-IoT akisina dogrudan baglanan bir production modeli degildir; offline benchmark
+            kaniti olarak konumlandirilmalidir.
+          </div>
+        </div>
+
+        <div style={{ marginTop: '20px', overflowX: 'auto' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Accuracy</th>
+                <th>Precision</th>
+                <th>Recall</th>
+                <th>F1-score</th>
+                <th>FPR</th>
+                <th>FNR</th>
+              </tr>
+            </thead>
+            <tbody>
+              {NBAIOT_BENCHMARK_ROWS.map((row) => (
+                <tr key={row.model}>
+                  <td><span className="table-primary">{row.model}</span></td>
+                  <td>{(row.accuracy * 100).toFixed(4)}%</td>
+                  <td>{(row.precision * 100).toFixed(4)}%</td>
+                  <td>{(row.recall * 100).toFixed(4)}%</td>
+                  <td><strong>{(row.f1 * 100).toFixed(4)}%</strong></td>
+                  <td>{(row.fpr * 100).toFixed(4)}%</td>
+                  <td>{(row.fnr * 100).toFixed(4)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '20px' }}>
+          <div className="soft-panel" style={{ padding: '16px' }}>
+            <div className="metric-label">Generalization comparison</div>
+            <img
+              src="/evaluation/nbaiot_generalization_comparison.png"
+              alt="N-BaIoT generalization comparison F1-score chart"
+              style={{ width: '100%', marginTop: '12px', borderRadius: '8px', background: '#fff' }}
+            />
+            <div className="table-secondary" style={{ marginTop: '8px' }}>
+              Kaynak: evaluation/results/nbaiot_generalization_comparison.png
+            </div>
+          </div>
+
+          <div className="soft-panel" style={{ padding: '16px' }}>
+            <div className="metric-label">Top feature importance</div>
+            <img
+              src="/evaluation/nbaiot_top_feature_importance.png"
+              alt="N-BaIoT top feature importance chart"
+              style={{ width: '100%', marginTop: '12px', borderRadius: '8px', background: '#fff' }}
+            />
+            <div className="table-secondary" style={{ marginTop: '8px' }}>
+              Kaynak: evaluation/results/nbaiot_top_feature_importance.png
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '20px' }}>
+          <div className="soft-panel" style={{ padding: '16px' }}>
+            <div className="metric-label">Device + Attack split matrix</div>
+            <img
+              src="/evaluation/nbaiot_device_attack_split_confusion_matrix.png"
+              alt="N-BaIoT Device plus Attack split confusion matrix"
+              style={{ width: '100%', marginTop: '12px', borderRadius: '8px', background: '#fff' }}
+            />
+            <div className="table-secondary" style={{ marginTop: '8px' }}>
+              Kaynak: evaluation/results/nbaiot_device_attack_split_confusion_matrix.png
+            </div>
+          </div>
+
+          <div className="soft-panel" style={{ padding: '16px' }}>
+            <div className="metric-label">Worst attack-family split matrix</div>
+            <img
+              src="/evaluation/nbaiot_attack_split_confusion_matrix_gafgyt.png"
+              alt="N-BaIoT held-out gafgyt attack split confusion matrix"
+              style={{ width: '100%', marginTop: '12px', borderRadius: '8px', background: '#fff' }}
+            />
+            <div className="table-secondary" style={{ marginTop: '8px' }}>
+              Kaynak: evaluation/results/nbaiot_attack_split_confusion_matrix_gafgyt.png
+            </div>
+          </div>
+        </div>
+
+        <div className="soft-panel" style={{ marginTop: '18px', padding: '16px' }}>
+          <div className="metric-label">Sunumda one cikarilacak sonuc</div>
+          <div style={{ marginTop: '8px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+            Sunumda random split basarisini tek basina savunmak yerine genelleme sinirini acikca gosterin: Device Split RF F1-score
+            {(NBAIOT_KEY_FINDINGS.deviceSplitF1 * 100).toFixed(4)}%, fakat Attack Split RF F1-score {(NBAIOT_KEY_FINDINGS.attackSplitF1 * 100).toFixed(2)}%
+            ve Device+Attack Split RF F1-score {(NBAIOT_KEY_FINDINGS.deviceAttackSplitF1 * 100).toFixed(2)}%. Bu tablo modelin kapasitesini ve
+            ezberleme riskini birlikte raporlayan daha guvenilir akademik kanittir.
+          </div>
+        </div>
+      </div>
     </div>
   )
 
@@ -688,7 +873,15 @@ const App = () => {
           <TopologyView
             data={topologyData}
             loading={topologyLoading}
+            refreshing={topologyRefreshing}
             error={topologyError}
+            lastUpdated={topologyLastUpdated}
+            refreshMs={topologyRefreshMs}
+            onRefreshMsChange={setTopologyRefreshMs}
+            onRefresh={() => fetchTopology({ showLoading: true })}
+            onStartScan={startScan}
+            scanLoading={scanLoading}
+            monitoringActive={monitoringActive}
             onSelectDevice={(ip) => {
               const device = devices.find((entry) => entry.ip === ip)
               if (device) {

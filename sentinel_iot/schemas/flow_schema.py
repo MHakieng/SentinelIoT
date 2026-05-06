@@ -53,6 +53,10 @@ class TopologyLink(BaseModel):
     anomaly: bool = False
     protocol: str = "Unknown"
     score: float = 0.0
+    src_port: Optional[int] = None
+    dst_port: Optional[int] = None
+    packet_count: int = 0
+    byte_count: int = 0
 
 
 class TopologyResponse(BaseModel):

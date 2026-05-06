@@ -27,7 +27,7 @@ def main():
     print(f"LLM enabled: {llm.get('enabled')} ({llm.get('provider')} / {llm.get('model')})")
 
     print_section("Scan Runtime")
-    scan_status = client.get("/scan/status").json()
+    scan_status = client.get("/scanner/status").json()
     print(f"Status: {scan_status.get('status')}")
     print(f"Message: {scan_status.get('message')}")
     print(f"Summary: {scan_status.get('summary')}")

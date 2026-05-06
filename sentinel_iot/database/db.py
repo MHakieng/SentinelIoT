@@ -5,8 +5,7 @@ import time
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
-from sentinel_iot.database.models import Base, Device, ScanHistory, AnomalyLog, RiskHistory
+from sentinel_iot.database.models import Base, Device, ScanHistory, AnomalyLog, RiskHistory, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +61,7 @@ def upsert_device(device_data: dict):
             existing.asset_type = device_data.get("asset_type", existing.asset_type)
             existing.priority = device_data.get("priority", existing.priority)
             existing.risk_breakdown = device_data.get("risk_breakdown", existing.risk_breakdown)
-            existing.last_seen = datetime.utcnow()
+            existing.last_seen = utc_now()
         else:
             device = Device(
                 ip=device_data["ip"],

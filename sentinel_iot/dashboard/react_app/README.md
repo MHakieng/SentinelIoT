@@ -1,16 +1,24 @@
-# React + Vite
+# SentinelIoT Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite tabanli SentinelIoT arayuzu.
 
-Currently, two official plugins are available:
+## Komutlar
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```powershell
+npm install
+npm run dev
+npm run build
+npm run lint
+npm run check
+```
 
-## React Compiler
+- `npm run dev`: dashboard'u `http://127.0.0.1:5173` uzerinden baslatir.
+- `npm run dev:lan`: dashboard'u yerel agdan erisilebilir sekilde baslatir.
+- `npm run check`: lint ve production build kontrolunu birlikte calistirir.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+API adresi varsayilan olarak `http://127.0.0.1:8000` kabul edilir. Farkli backend adresi icin:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```powershell
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
+npm run dev
+```

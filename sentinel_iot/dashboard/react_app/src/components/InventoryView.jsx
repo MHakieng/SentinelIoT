@@ -1,5 +1,5 @@
 import React from 'react'
-import { Monitor, ChevronRight, HardDrive, ShieldAlert, ShieldCheck, Network, Fingerprint, Bug, Layout, FileImage, FileText } from 'lucide-react'
+import { Monitor, ChevronRight, HardDrive, ShieldAlert, ShieldCheck, Network, Fingerprint } from 'lucide-react'
 import { AreaChart, Area, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { translateRiskStatus } from '../lib/uiText'
 
@@ -8,10 +8,6 @@ const sparklineData2 = [{ v: 10 }, { v: 12 }, { v: 18 }, { v: 24 }, { v: 32 }, {
 const sparklineData3 = [{ v: 40 }, { v: 35 }, { v: 30 }, { v: 20 }, { v: 25 }, { v: 15 }, { v: 10 }]
 const sparklineData4 = [{ v: 10 }, { v: 15 }, { v: 12 }, { v: 25 }, { v: 22 }, { v: 35 }, { v: 30 }]
 
-const gaugeData = [
-  { name: 'Risk', value: 70 },
-  { name: 'Safe', value: 30 }
-]
 const COLORS = ['var(--neon-pink)', 'rgba(255,255,255,0.05)']
 
 const InventoryView = ({ devices, onSelectDevice, loading = false, error = null }) => {

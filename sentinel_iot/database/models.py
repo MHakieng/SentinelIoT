@@ -1,9 +1,14 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
+from sqlalchemy.orm import declarative_base, sessionmaker
+from datetime import UTC, datetime
 
 Base = declarative_base()
+
+
+def utc_now():
+    """Return a UTC timestamp stored as naive datetime for SQLite compatibility."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
 
 class Device(Base):
     __tablename__ = "devices"
@@ -12,7 +17,7 @@ class Device(Base):
     ip = Column(String, unique=True, index=True)
     mac = Column(String)
     vendor = Column(String, default="Unknown")
-    last_seen = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_seen = Column(DateTime, default=utc_now, onupdate=utc_now)
     status = Column(String, default="Safe")
     risk_score = Column(Float, default=0.0)
     open_ports = Column(JSON, default=[])
@@ -25,7 +30,7 @@ class ScanHistory(Base):
     __tablename__ = "scan_history"
     
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now)
     devices_found = Column(Integer, default=0)
     scan_type = Column(String, default="full")
 
@@ -34,7 +39,7 @@ class AnomalyLog(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     device_ip = Column(String, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now)
     type = Column(String) # e.g., "dos", "scan", "mitm"
     score = Column(Float)
     details = Column(JSON)
@@ -44,8 +49,7 @@ class RiskHistory(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     device_ip = Column(String, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now)
     risk_score = Column(Float)
     vuln_component = Column(Float)
     anomaly_component = Column(Float)
-

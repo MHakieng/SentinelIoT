@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import List, Optional
 
@@ -49,7 +49,7 @@ class EvidenceItem(BaseModel):
 
 class DeviceAnalysisResponse(BaseModel):
     device_ip: str
-    generated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(timespec="seconds") + "Z")
+    generated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"))
     sections: DeviceAnalysisSections
     grounding_summary: DeviceAnalysisGroundingSummary
     evidence_used: List[EvidenceItem] = Field(default_factory=list)

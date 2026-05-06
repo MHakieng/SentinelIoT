@@ -6,13 +6,14 @@ from sklearn.metrics import f1_score, precision_score, recall_score, average_pre
 import joblib
 import os
 import threading
+from pathlib import Path
 from sentinel_iot.ml.feature_schema import FEATURE_SCHEMA, validate_features
 
 class AnomalyModel:
     """Anomaly detection model for IoT traffic using Isolation Forest with performance metrics."""
     
-    def __init__(self, model_path="anomaly_model.joblib"):
-        self.model_path = model_path
+    def __init__(self, model_path=None):
+        self.model_path = str(model_path or Path(__file__).resolve().parents[1] / "anomaly_model.joblib")
         self.features = FEATURE_SCHEMA
         self.model = None
         self.scaler = StandardScaler()

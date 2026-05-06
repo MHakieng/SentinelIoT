@@ -1,0 +1,7 @@
+model,experiment,accuracy,precision,recall,f1_score,false_positive_rate,false_negative_rate
+Random Split RF,standard,0.999989,1.0,0.999988,0.999994,0.0,1.2e-05
+Balanced RF,balanced_random_split,0.999913,1.0,0.999826,0.999913,0.0,0.000174
+Device Split RF,standard,0.998539,0.998419,0.999993,0.999206,0.017886,7e-06
+Isolation Forest,isolation_forest_tuning,0.985236,0.98407,0.999827,0.991886,0.149999,0.000172
+Device + Attack Split RF,device_attack_split,0.761298,0.994123,0.685407,0.806298,0.01103,0.314593
+Attack Split RF,attack_family_split,0.760342,1.0,0.680457,0.803536,0.0,0.319543

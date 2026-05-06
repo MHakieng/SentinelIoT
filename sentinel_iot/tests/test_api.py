@@ -38,11 +38,11 @@ class TestDevicesEndpoint:
 
 class TestStatusEndpoint:
     def test_status_returns_200(self, client):
-        response = client.get("/status")
+        response = client.get("/scanner/jobs")
         assert response.status_code == 200
 
     def test_status_has_status_field(self, client):
-        data = client.get("/status").json()
+        data = client.get("/scanner/jobs").json()
         assert "status" in data
 
 
@@ -64,17 +64,17 @@ class TestMetricsEndpoint:
 
 class TestHistoryEndpoint:
     def test_history_returns_200(self, client):
-        response = client.get("/history")
+        response = client.get("/monitor/history")
         assert response.status_code == 200
 
     def test_history_returns_list(self, client):
-        data = client.get("/history").json()
+        data = client.get("/monitor/history").json()
         assert isinstance(data, list)
 
 
 class TestLivePacketsEndpoint:
     def test_live_packets_returns_200(self, client):
-        response = client.get("/live-packets")
+        response = client.get("/monitor/packets")
         assert response.status_code == 200
 
 
@@ -83,6 +83,6 @@ class TestScanEndpoint:
         # Mock the background scan to avoid triggering real nmap
         from unittest.mock import patch
         with patch("sentinel_iot.services.scanner_service.ScannerService.perform_full_scan"):
-            response = client.post("/scan?target_range=192.168.1.0/24")
+            response = client.post("/scanner/scans?target_range=192.168.1.0/24")
             assert response.status_code == 200
             assert "message" in response.json()

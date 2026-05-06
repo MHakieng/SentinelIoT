@@ -21,6 +21,10 @@ export const clearDeviceAnalysis = (deviceIp) => {
   analysisCache.delete(deviceIp)
 }
 
+export const clearAllDeviceAnalysis = () => {
+  analysisCache.clear()
+}
+
 export const fetchDeviceAnalysis = async ({ apiBaseUrl, deviceIp, forceRefresh = false, timeout = 25000 }) => {
   if (!deviceIp) {
     throw new Error('deviceIp is required')

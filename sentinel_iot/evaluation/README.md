@@ -34,7 +34,7 @@ Example Gemini environment setup in PowerShell:
 
 ```powershell
 $env:SENTINEL_LLM_PROVIDER="gemini"
-$env:SENTINEL_LLM_API_KEY="YOUR_GEMINI_API_KEY"
+$env:SENTINEL_LLM_API_KEY="<your_gemini_api_key>"
 $env:SENTINEL_LLM_MODEL="gemini-2.0-flash"
 ```
 

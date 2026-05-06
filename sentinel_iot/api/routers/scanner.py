@@ -8,7 +8,7 @@ from sentinel_iot.scanner.vulnerability_scan import PROFILE_ARGUMENTS
 from sentinel_iot.api.dependencies import get_scanner_service, get_job_manager, get_devices_db
 from sentinel_iot.schemas.job_schema import JobCreateResponse, JobStatus, ScanRuntimeStatus
 
-router = APIRouter(tags=["Scanner"])
+router = APIRouter(prefix="/scanner", tags=["Scanner"])
 
 
 def _build_scan_status(service: ScannerService, job_manager: JobManager) -> JobStatus:
@@ -41,7 +41,7 @@ def _build_scan_status(service: ScannerService, job_manager: JobManager) -> JobS
         start_time=runtime.get("started_at") or "N/A",
     )
 
-@router.post("/scan", response_model=JobCreateResponse)
+@router.post("/scans", response_model=JobCreateResponse)
 def trigger_scan(
     background_tasks: BackgroundTasks, 
     target_range: Optional[str] = None,
@@ -72,12 +72,12 @@ def trigger_scan(
     return {"message": "Scan started", "job_id": job_id, "status": "pending"}
 
 
-@router.get("/scan/status", response_model=ScanRuntimeStatus)
+@router.get("/status", response_model=ScanRuntimeStatus)
 def get_scan_runtime_status(service: ScannerService = Depends(get_scanner_service)):
     return service.get_runtime_status()
 
-@router.get("/status", response_model=JobStatus)
-@router.get("/status/{job_id}", response_model=JobStatus)
+@router.get("/jobs", response_model=JobStatus)
+@router.get("/jobs/{job_id}", response_model=JobStatus)
 def get_job_status(
     job_id: Optional[str] = None,
     service: ScannerService = Depends(get_scanner_service),

@@ -21,7 +21,7 @@ def test_list_devices():
     assert isinstance(response.json(), list)
 
 def test_get_status():
-    response = client.get("/status")
+    response = client.get("/scanner/jobs")
     assert response.status_code == 200
     assert "status" in response.json()
 

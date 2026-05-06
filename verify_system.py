@@ -38,23 +38,23 @@ def verify_all():
     metrics = check_endpoint("ML Metrics", "/metrics")
     
     # 4. Scanner Check
-    print("\n[*] Testing Scanner (Triggering /scan on 127.0.0.1)...")
-    scan_resp = check_endpoint("Scan Trigger", "/scan", method="POST", params={"target_range": "127.0.0.1/32"})
+    print("\n[*] Testing Scanner (Triggering /scanner/scans on 127.0.0.1)...")
+    scan_resp = check_endpoint("Scan Trigger", "/scanner/scans", method="POST", params={"target_range": "127.0.0.1/32"})
     
     if scan_resp and "job_id" in scan_resp:
         job_id = scan_resp["job_id"]
         # Poll status for 5 seconds
         for _ in range(3):
             time.sleep(2)
-            check_endpoint(f"Job Status ({job_id})", f"/status/{job_id}")
+            check_endpoint(f"Job Status ({job_id})", f"/scanner/jobs/{job_id}")
             
     # 5. Monitoring Check
     print("\n[*] Testing Live Monitor...")
-    check_endpoint("Monitor Start", "/test-live/start", method="POST", params={"duration": 1})
+    check_endpoint("Monitor Start", "/monitor/live/start", method="POST", params={"duration": 1})
     time.sleep(2)
-    check_endpoint("Live Packets", "/live-packets")
-    check_endpoint("Live Flows", "/live-flows")
-    check_endpoint("Monitor Stop", "/test-live/stop", method="POST")
+    check_endpoint("Live Packets", "/monitor/packets")
+    check_endpoint("Live Flows", "/monitor/flows")
+    check_endpoint("Monitor Stop", "/monitor/live/stop", method="POST")
 
     print("\n--- Health Check Finished ---")
 

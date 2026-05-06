@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import sys
 import os
+from contextlib import asynccontextmanager
 
 # Add the project root (v3) to sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,7 +13,15 @@ if PROJECT_ROOT not in sys.path:
 from sentinel_iot.database.db import init_db
 from sentinel_iot.api.routers import devices, scanner, monitor, ml, llm, health
 
-app = FastAPI(title="SentinelIoT API", version="3.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize application resources on startup."""
+    init_db()
+    yield
+
+
+app = FastAPI(title="SentinelIoT API", version="3.0.0", lifespan=lifespan)
 
 # Enable CORS for React Dashboard
 app.add_middleware(
@@ -30,11 +39,6 @@ app.include_router(monitor.router)
 app.include_router(ml.router)
 app.include_router(llm.router)
 app.include_router(health.router)
-
-@app.on_event("startup")
-def startup_event():
-    """Initialize DB tables."""
-    init_db()
 
 @app.get("/")
 def read_root():

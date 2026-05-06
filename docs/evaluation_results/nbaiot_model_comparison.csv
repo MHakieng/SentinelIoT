@@ -1,0 +1,14 @@
+model,experiment,accuracy,precision,recall,f1_score,false_positive_rate,false_negative_rate
+random_forest,standard,0.999989,1.0,0.999988,0.999994,0.0,1.2e-05
+extra_trees,standard,0.999983,1.0,0.999981,0.999991,0.0,1.9e-05
+hist_gradient_boosting,standard,0.999977,0.999997,0.999978,0.999987,2.9e-05,2.2e-05
+balanced_random_forest,balanced_random_split,0.999913,1.0,0.999826,0.999913,0.0,0.000174
+random_forest_device_split,standard,0.998539,0.998419,0.999993,0.999206,0.017886,7e-06
+isolation_forest_0.15,isolation_forest_tuning,0.985236,0.98407,0.999827,0.991886,0.149999,0.000172
+isolation_forest_0.2,isolation_forest_tuning,0.980448,0.978874,0.999919,0.989285,0.199999,8.1e-05
+isolation_forest_0.1,isolation_forest_tuning,0.785759,0.986241,0.773432,0.866969,0.099999,0.226568
+device_attack_split_random_forest,device_attack_split,0.761298,0.994123,0.685407,0.806298,0.01103,0.314593
+attack_split_random_forest,attack_family_split,0.760342,1.0,0.680457,0.803536,0.0,0.319543
+isolation_forest_0.05,isolation_forest_tuning,0.614311,0.990754,0.57809,0.730149,0.05,0.42191
+isolation_forest_0.03,isolation_forest_tuning,0.346361,0.988532,0.27907,0.435262,0.030004,0.72093
+isolation_forest_0.01,isolation_forest_tuning,0.245963,0.993527,0.165681,0.284002,0.010003,0.834319

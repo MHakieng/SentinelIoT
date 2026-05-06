@@ -15,14 +15,14 @@ from sentinel_iot.schemas.flow_schema import (
 from sentinel_iot.schemas.job_schema import JobCreateResponse, JobControlResponse, MonitorRuntimeStatus
 from sentinel_iot.database.db import get_all_devices
 
-router = APIRouter(tags=["Monitoring"])
+router = APIRouter(prefix="/monitor", tags=["Monitoring"])
 
-@router.get("/live-packets", response_model=List[PacketInfo])
+@router.get("/packets", response_model=List[PacketInfo])
 def get_live_packets(service: MonitorService = Depends(get_monitor_service)):
     """Return the most recently captured raw packets for the dashboard."""
     return service.get_live_packets_snapshot()
 
-@router.get("/live-flows", response_model=List[FlowMetrics])
+@router.get("/flows", response_model=List[FlowMetrics])
 def get_live_flows(service: MonitorService = Depends(get_monitor_service)):
     """Return the aggregated flow summary with anomaly labels."""
     return service.get_live_flows_snapshot()
@@ -82,12 +82,16 @@ def get_topology(service: MonitorService = Depends(get_monitor_service)):
                     anomaly=flow.get("label") == 1,
                     protocol=flow.get("protocol_name", str(flow.get("protocol", "Unknown"))),
                     score=flow.get("anomaly_score", 0.0),
+                    src_port=flow.get("src_port"),
+                    dst_port=flow.get("dst_port"),
+                    packet_count=flow.get("packet_count", 0),
+                    byte_count=flow.get("byte_count", 0),
                 )
             )
 
     return TopologyResponse(nodes=nodes, links=links)
 
-@router.post("/test-live/start", response_model=JobCreateResponse)
+@router.post("/live/start", response_model=JobCreateResponse)
 def start_live_test(
     background_tasks: BackgroundTasks, 
     duration: int = 5,
@@ -109,12 +113,12 @@ def start_live_test(
     return {"message": "Continuous live test started", "job_id": job_id, "status": "pending"}
 
 
-@router.get("/test-live/status", response_model=MonitorRuntimeStatus)
+@router.get("/live/status", response_model=MonitorRuntimeStatus)
 def get_live_test_status(service: MonitorService = Depends(get_monitor_service)):
     """Return a stable runtime snapshot for live monitoring state."""
     return service.get_runtime_status()
 
-@router.post("/test-live/stop", response_model=JobControlResponse)
+@router.post("/live/stop", response_model=JobControlResponse)
 def stop_live_test(
     service: MonitorService = Depends(get_monitor_service),
     job_manager: JobManager = Depends(get_job_manager)

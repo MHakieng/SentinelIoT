@@ -1,31 +1,82 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 .pytest_cache/
 .pytest-tmp/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 .venv/
 venv/
+env/
+ENV/
 
 # Runtime data
 *.db
 *.sqlite
 *.sqlite3
+sentinel_iot.db
+instance/
+logs/
+*.log
 *.pcap
 *.pcapng
+*.csv
 live_test_*.pcap
 capture.pcap
 integration_test.pcap
+captures/
+packets/
+scan_results/
+nmap_output/
+zap_reports/
 
 # Frontend
 node_modules/
 dist/
+build/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+release/
+
+# Evaluation data and generated model artifacts
+evaluation/datasets/raw/
+evaluation/datasets/processed/
+evaluation/models/
+evaluation/live/
+evaluation/results/
+evaluation/**/*.pkl
+evaluation/**/*.joblib
+evaluation/**/*.csv
+evaluation/**/*.json
+evaluation/**/*.png
+sentinel_iot/evaluation/results/
+*.joblib
+*.pkl
 
 # Environment and local editor files
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+secrets.*
+credentials.*
+config.local.*
 .vscode/
 .idea/
+
+# Small report artifacts that are safe to publish
+!docs/evaluation_results/
+!docs/evaluation_results/*.png
+!docs/evaluation_results/*.md
+!docs/evaluation_results/*.csv
 
 # OS files
 Thumbs.db

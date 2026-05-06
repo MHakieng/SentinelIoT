@@ -101,8 +101,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
 
         setHistory(Array.isArray(histRes.data) ? histRes.data : [])
         setAnomalies(Array.isArray(anomRes.data) ? anomRes.data : [])
-      } catch (err) {
-        console.error('Failed to fetch device history', err)
+      } catch {
         if (!cancelled) {
           setHistory([])
           setAnomalies([])
@@ -151,7 +150,6 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
 
       setAiAnalysis(data)
     } catch (err) {
-      console.error('Failed to generate AI analysis', err)
       if (analysisRequestRef.current !== requestId || device.ip !== currentIp) {
         return
       }
@@ -198,7 +196,6 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
       cveExplanationCache.set(key, response.data)
       setCveExplanation(response.data)
     } catch (err) {
-      console.error('Failed to generate CVE explanation', err)
       setCveExplanation(null)
       setCveError(describeLlmUiFailure(err, 'Bu servis için CVE açıklaması üretilemedi.'))
     } finally {
