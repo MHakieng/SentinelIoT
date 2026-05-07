@@ -1,12 +1,7 @@
 import React from 'react'
 import { Monitor, ChevronRight, HardDrive, ShieldAlert, ShieldCheck, Network, Fingerprint } from 'lucide-react'
-import { AreaChart, Area, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { translateRiskStatus } from '../lib/uiText'
-
-const sparklineData1 = [{ v: 2 }, { v: 5 }, { v: 3 }, { v: 8 }, { v: 5 }, { v: 12 }, { v: 9 }]
-const sparklineData2 = [{ v: 10 }, { v: 12 }, { v: 18 }, { v: 24 }, { v: 32 }, { v: 28 }, { v: 45 }]
-const sparklineData3 = [{ v: 40 }, { v: 35 }, { v: 30 }, { v: 20 }, { v: 25 }, { v: 15 }, { v: 10 }]
-const sparklineData4 = [{ v: 10 }, { v: 15 }, { v: 12 }, { v: 25 }, { v: 22 }, { v: 35 }, { v: 30 }]
 
 const COLORS = ['var(--neon-pink)', 'rgba(255,255,255,0.05)']
 
@@ -33,13 +28,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             </div>
             <div className="widget-value">{highRiskCount}</div>
             <div className="widget-label">Kritik Riskli Cihaz</div>
-            <div className="widget-chart-wrapper">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={sparklineData1}>
-                  <Area type="monotone" dataKey="v" stroke="var(--neon-purple)" fill="rgba(192, 132, 252, 0.2)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <div className="status-note">Risk skoru 70 ve üzeri cihazlar</div>
           </div>
 
           <div className="widget-card">
@@ -48,13 +37,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             </div>
             <div className="widget-value">{totalDevices}</div>
             <div className="widget-label">Aktif Host / Cihaz</div>
-            <div className="widget-chart-wrapper">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={sparklineData2}>
-                  <Area type="monotone" dataKey="v" stroke="var(--neon-cyan)" fill="rgba(34, 211, 238, 0.2)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <div className="status-note">Kalıcı envanter kaydı</div>
           </div>
 
           <div className="widget-card">
@@ -63,13 +46,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             </div>
             <div className="widget-value">{openPortsAvg}</div>
             <div className="widget-label">Ort. Açık Servis</div>
-            <div className="widget-chart-wrapper">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={sparklineData3}>
-                  <Area type="step" dataKey="v" stroke="var(--neon-orange)" fill="rgba(251, 146, 60, 0.2)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <div className="status-note">Son tarama servis görünürlüğü</div>
           </div>
 
           <div className="widget-card">
@@ -78,13 +55,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             </div>
             <div className="widget-value">{totalDevices - highRiskCount}</div>
             <div className="widget-label">İzlenen Normal Cihazlar</div>
-            <div className="widget-chart-wrapper">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={sparklineData4}>
-                  <Area type="monotone" dataKey="v" stroke="var(--neon-pink)" fill="rgba(217, 70, 239, 0.2)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <div className="status-note">Yüksek risk eşiğinin altında</div>
           </div>
 
         </div>

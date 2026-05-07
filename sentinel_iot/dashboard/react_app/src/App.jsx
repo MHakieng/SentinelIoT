@@ -8,9 +8,7 @@ import {
   LayoutDashboard,
   Loader2,
   BarChart3,
-  Info,
   List,
-  Waves,
   Share2,
   CheckCircle2,
   Clock3,
@@ -18,14 +16,14 @@ import {
 } from 'lucide-react'
 import axios from 'axios'
 
+import CommandCenterView from './components/command/CommandCenterView'
 import InventoryView from './components/InventoryView'
 import VulnerabilityView from './components/VulnerabilityView'
 import AnomalyView from './components/AnomalyView'
 import DeviceDetailView from './components/DeviceDetailView'
-import PacketListView from './components/PacketListView'
-import FlowSummaryView from './components/FlowSummaryView'
 import TopologyView from './components/TopologyView'
 import SecurityAssistantPanel from './components/SecurityAssistantPanel'
+import MetricsView from './components/MetricsView'
 import { clearAllDeviceAnalysis } from './lib/deviceAnalysisClient'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
@@ -53,33 +51,6 @@ const DEFAULT_TOPOLOGY_REFRESH_MS = 10000
 const MONITOR_STATUS_REFRESH_MS = 2500
 const SCAN_STATUS_REFRESH_MS = 1200
 const LIVE_CAPTURE_WINDOW_SECONDS = 10
-const NBAIOT_BENCHMARK_ROWS = [
-  { model: 'Random Forest', accuracy: 0.999989, precision: 1.0, recall: 0.999988, f1: 0.999994, fpr: 0.0, fnr: 0.000012 },
-  { model: 'Extra Trees', accuracy: 0.999983, precision: 1.0, recall: 0.999981, f1: 0.999991, fpr: 0.0, fnr: 0.000019 },
-  { model: 'HistGradientBoosting', accuracy: 0.999977, precision: 0.999997, recall: 0.999978, f1: 0.999987, fpr: 0.000029, fnr: 0.000022 },
-  { model: 'Balanced RF', accuracy: 0.999913, precision: 1.0, recall: 0.999826, f1: 0.999913, fpr: 0.0, fnr: 0.000174 },
-  { model: 'Device Split RF', accuracy: 0.998539, precision: 0.998419, recall: 0.999993, f1: 0.999206, fpr: 0.017886, fnr: 0.000007 },
-  { model: 'Isolation Forest 0.15', accuracy: 0.985236, precision: 0.98407, recall: 0.999827, f1: 0.991886, fpr: 0.149999, fnr: 0.000172 },
-  { model: 'Device + Attack Split RF', accuracy: 0.761298, precision: 0.994123, recall: 0.685407, f1: 0.806298, fpr: 0.01103, fnr: 0.314593 },
-  { model: 'Attack Split RF', accuracy: 0.760342, precision: 1.0, recall: 0.680457, f1: 0.803536, fpr: 0.0, fnr: 0.319543 },
-]
-const NBAIOT_KEY_FINDINGS = {
-  sampleCount: '1,772,641',
-  featureCount: 115,
-  normalCount: '172,641',
-  anomalyCount: '1,600,000',
-  randomForestF1: 0.999994,
-  balancedRfF1: 0.999913,
-  deviceSplitF1: 0.999206,
-  attackSplitF1: 0.803536,
-  deviceAttackSplitF1: 0.806298,
-  bestIsolationContamination: '0.15',
-  bestIsolationF1: 0.991886,
-  deviceSplitFpr: 0.017886,
-  leakageFeature: 'HH_jit_L0.01_mean',
-  leakageFeatureF1: 0.958079,
-}
-
 const describeRequestFailure = (err, fallback) => {
   if (!err) {
     return fallback
@@ -125,7 +96,7 @@ const formatJobFailure = (job) => {
 }
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState('inventory')
+  const [activeTab, setActiveTab] = useState('command')
   const [devices, setDevices] = useState([])
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [assistantOpen, setAssistantOpen] = useState(false)
@@ -134,6 +105,7 @@ const App = () => {
   const [scanProgress, setScanProgress] = useState(0)
   const [scanError, setScanError] = useState(null)
   const [scanNotice, setScanNotice] = useState(null)
+  const [scanJobs, setScanJobs] = useState([])
 
   const [devicesLoading, setDevicesLoading] = useState(true)
   const [devicesError, setDevicesError] = useState(null)
@@ -169,6 +141,14 @@ const App = () => {
   const monitorRuntimeVersionRef = useRef(0)
 
   const monitoringActive = ['pending', 'running', 'stopping'].includes(monitorStatus)
+
+  const rememberScanJob = (job) => {
+    if (!job?.id) return
+    setScanJobs((current) => {
+      const next = [job, ...current.filter((entry) => entry.id !== job.id)]
+      return next.slice(0, 8)
+    })
+  }
 
   const fetchDevices = async () => {
     try {
@@ -241,6 +221,15 @@ const App = () => {
     } finally {
       setTopologyLoading(false)
       setTopologyRefreshing(false)
+    }
+  }
+
+  const fetchLatestScanJob = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.scanJobs}`, { timeout: 5000 })
+      rememberScanJob(response.data)
+    } catch {
+      // Timeline can still render device and monitor-derived events without scanner job history.
     }
   }
 
@@ -339,7 +328,7 @@ const App = () => {
 
     clearAllDeviceAnalysis()
     await fetchDevices()
-    if (activeTab === 'topology') {
+    if (activeTab === 'topology' || activeTab === 'command') {
       await fetchTopology()
     }
 
@@ -357,6 +346,7 @@ const App = () => {
       try {
         const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.scanJobs}/${jobId}`, { timeout: 3000 })
         const { status, progress } = response.data
+        rememberScanJob(response.data)
 
         setScanLoading(status === 'pending' || status === 'running')
         setScanProgress(progress || 0)
@@ -401,10 +391,22 @@ const App = () => {
 
       const response = await axios.post(`${API_BASE_URL}${API_ENDPOINTS.scans}`, null, { params, timeout: 8000 })
       const jobId = response.data.job_id
+      const startedAt = new Date().toISOString()
 
       if (!jobId) {
         throw new Error('Tarama yanıtında job ID eksik')
       }
+
+      rememberScanJob({
+        id: jobId,
+        type: 'scan',
+        status: response.data.status || 'pending',
+        started_at: startedAt,
+        updated_at: startedAt,
+        progress: 0,
+        target: normalizedTarget || null,
+        message: response.data.message || null,
+      })
 
       if (response.data.status === 'running') {
         setScanNotice(response.data.message || 'Bir tarama zaten çalışıyor.')
@@ -453,6 +455,7 @@ const App = () => {
 
   useEffect(() => {
     fetchDevices()
+    fetchLatestScanJob()
     fetchScanRuntimeState().then((runtime) => {
       if (runtime?.is_running && runtime?.active_job_id) {
         pollScanJob(runtime.active_job_id, true)
@@ -480,7 +483,7 @@ const App = () => {
   }, [monitorStatus])
 
   useEffect(() => {
-    if (activeTab !== 'metrics' && activeTab !== 'anomalies') {
+    if (!['command', 'validation', 'live'].includes(activeTab)) {
       return undefined
     }
 
@@ -490,7 +493,7 @@ const App = () => {
   }, [activeTab])
 
   useEffect(() => {
-    if (!['packets', 'flows', 'anomalies'].includes(activeTab)) {
+    if (!['command', 'live', 'topology'].includes(activeTab)) {
       return undefined
     }
 
@@ -500,7 +503,7 @@ const App = () => {
   }, [activeTab])
 
   useEffect(() => {
-    if (activeTab !== 'anomalies') {
+    if (!['command', 'live'].includes(activeTab)) {
       return undefined
     }
 
@@ -510,7 +513,7 @@ const App = () => {
   }, [activeTab])
 
   useEffect(() => {
-    if (activeTab !== 'topology') {
+    if (!['command', 'topology'].includes(activeTab)) {
       return undefined
     }
 
@@ -590,235 +593,47 @@ const App = () => {
     }
   }
 
-  const renderMetricsView = () => (
-    <div className="fade-in">
-      <div className="flex-row gap-6" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-        <div className="card flex-col p-0" style={{ padding: '24px' }}>
-          <h3 className="flex-row items-center gap-2 mb-4" style={{ margin: 0 }}>
-            <Zap size={18} color="var(--warning)" /> Model Doğrulama
-          </h3>
-          {metricsLoading ? (
-            <div className="empty-state p-0" style={{ minHeight: '160px' }}>
-              <div className="skeleton skeleton-icon" style={{ width: '40px', height: '40px', marginBottom: '16px', borderRadius: '50%' }}></div>
-              <div className="skeleton skeleton-text" style={{ width: '120px' }}></div>
-            </div>
-          ) : metricsError ? (
-            <div className="empty-state p-0" style={{ minHeight: '160px' }}>
-              <AlertTriangle className="empty-state-icon" style={{ color: 'var(--danger)', width: '36px', height: '36px' }} />
-              <div className="empty-state-copy" style={{ color: 'var(--danger)' }}>{metricsError}</div>
-            </div>
-          ) : systemMetrics ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>F1 Skoru</span>
-                <span style={{ fontWeight: 600 }}>{((systemMetrics.synthetic_training_metrics?.f1_score || 0) * 100).toFixed(1)}%</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Kesinlik</span>
-                <span style={{ fontWeight: 600 }}>{((systemMetrics.synthetic_training_metrics?.precision || 0) * 100).toFixed(1)}%</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Duyarlılık</span>
-                <span style={{ fontWeight: 600 }}>{((systemMetrics.synthetic_training_metrics?.recall || 0) * 100).toFixed(1)}%</span>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                <Info size={12} /> Bu değerler mevcut anomali modelinin doğrulama metriklerini özetler.
-              </div>
-            </div>
-          ) : (
-            <div className="empty-state p-0" style={{ minHeight: '160px' }}>
-              <BarChart3 className="empty-state-icon" style={{ width: '36px', height: '36px' }} />
-              <div className="empty-state-copy">Henüz doğrulama metriği bulunmuyor.</div>
-            </div>
-          )}
-        </div>
-
-        <div className="card flex-col p-0" style={{ padding: '24px' }}>
-          <h3 className="flex-row items-center gap-2 mb-4" style={{ margin: 0 }}>
-            <Shield size={18} color="var(--success)" /> Runtime Metrics Status
-          </h3>
-          {metricsLoading ? (
-            <div className="empty-state p-0" style={{ minHeight: '160px' }}>
-              <div className="skeleton skeleton-icon" style={{ width: '40px', height: '40px', marginBottom: '16px', borderRadius: '50%' }}></div>
-              <div className="skeleton skeleton-text" style={{ width: '120px' }}></div>
-            </div>
-          ) : metricsError ? (
-            <div className="empty-state p-0" style={{ minHeight: '160px' }}>
-              <AlertTriangle className="empty-state-icon" style={{ color: 'var(--danger)', width: '36px', height: '36px' }} />
-              <div className="empty-state-copy" style={{ color: 'var(--danger)' }}>{metricsError}</div>
-            </div>
-          ) : systemMetrics?.runtime_detection_metrics ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Runtime TP / FP</span>
-                <span style={{ fontWeight: 600 }}>
-                  {systemMetrics.runtime_detection_metrics.true_positives ?? 'N/A'} / {systemMetrics.runtime_detection_metrics.false_positives ?? 'N/A'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Runtime F1</span>
-                <span style={{ fontWeight: 600 }}>{systemMetrics.runtime_detection_metrics.f1_score ?? 'N/A'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Kaynak</span>
-                <span style={{ fontWeight: 600 }}>{systemMetrics.runtime_metrics_metadata?.source || 'unknown'}</span>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                <Info size={12} /> {systemMetrics.runtime_metrics_metadata?.note || 'Runtime metrics require labelled live events.'}
-              </div>
-            </div>
-          ) : (
-            <div className="empty-state p-0" style={{ minHeight: '160px' }}>
-              <BarChart3 className="empty-state-icon" style={{ width: '36px', height: '36px' }} />
-              <div className="empty-state-title">Runtime metrikleri mevcut degil</div>
-              <div className="empty-state-copy">
-                Runtime TP/FP/F1 metrikleri etiketli canli olay gerektirir ve bu prototipte uretilmez.
-                N-BaIoT sonuclari ayri bir offline benchmark olarak asagida gosterilir.
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '24px', padding: '24px' }}>
-        <div className="section-header" style={{ marginBottom: '18px' }}>
-          <div>
-            <h3 className="flex-row items-center gap-2" style={{ margin: 0 }}>
-              <CheckCircle2 size={18} color="var(--success)" /> Akademik Dogrulama Kanitlari
-            </h3>
-            <div className="section-subtitle" style={{ marginTop: '6px' }}>
-              N-BaIoT benchmark, overfitting riski, genelleme testleri ve leakage analizi final sunumu icin tek yerde ozetlenir.
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '14px' }}>
-          {[
-            ['N-BaIoT kayit', NBAIOT_KEY_FINDINGS.sampleCount, 'Processed benchmark satiri'],
-            ['Feature sayisi', NBAIOT_KEY_FINDINGS.featureCount, 'N-BaIoT numeric feature semasi'],
-            ['Normal / Anomaly', `${NBAIOT_KEY_FINDINGS.normalCount} / ${NBAIOT_KEY_FINDINGS.anomalyCount}`, 'Binary benchmark dagilimi'],
-            ['Random split F1', `${(NBAIOT_KEY_FINDINGS.randomForestF1 * 100).toFixed(4)}%`, 'Random Forest en yuksek benchmark'],
-            ['Balanced RF F1', `${(NBAIOT_KEY_FINDINGS.balancedRfF1 * 100).toFixed(4)}%`, 'Dengeli normal/anomaly random split'],
-            ['Device split F1', `${(NBAIOT_KEY_FINDINGS.deviceSplitF1 * 100).toFixed(4)}%`, 'Cihaz bazli genelleme testi'],
-            ['Attack split F1', `${(NBAIOT_KEY_FINDINGS.attackSplitF1 * 100).toFixed(2)}%`, 'Gorulmeyen saldiri ailesi testi'],
-            ['Device+Attack F1', `${(NBAIOT_KEY_FINDINGS.deviceAttackSplitF1 * 100).toFixed(2)}%`, 'Gorulmeyen cihaz + saldiri ailesi'],
-            ['Leakage suspect', NBAIOT_KEY_FINDINGS.leakageFeature, `Tek feature F1 ${(NBAIOT_KEY_FINDINGS.leakageFeatureF1 * 100).toFixed(2)}%`],
-            ['IF best contamination', NBAIOT_KEY_FINDINGS.bestIsolationContamination, `F1 ${(NBAIOT_KEY_FINDINGS.bestIsolationF1 * 100).toFixed(2)}%`],
-          ].map(([label, value, source]) => (
-            <div key={label} className="soft-panel" style={{ padding: '16px' }}>
-              <div className="metric-label">{label}</div>
-              <div style={{ marginTop: '8px', fontWeight: 800, fontSize: '1.05rem' }}>{value}</div>
-              <div className="table-secondary" style={{ marginTop: '4px' }}>{source}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="soft-panel" style={{ marginTop: '16px', padding: '18px', borderColor: 'rgba(45, 212, 191, 0.22)' }}>
-          <div className="metric-label">Akademik yorum</div>
-          <div style={{ marginTop: '8px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            Random split ve balanced random split model kapasitesini gosterir, fakat genelleme guvenilirligini tek basina kanitlamaz.
-            Attack-family ve device+attack split sonuclari F1 degerini yaklasik 0.80 seviyesine indirerek ezberleme riskini olculebilir
-            hale getirdi. N-BaIoT modeli canli Sentinel-IoT akisina dogrudan baglanan bir production modeli degildir; offline benchmark
-            kaniti olarak konumlandirilmalidir.
-          </div>
-        </div>
-
-        <div style={{ marginTop: '20px', overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Model</th>
-                <th>Accuracy</th>
-                <th>Precision</th>
-                <th>Recall</th>
-                <th>F1-score</th>
-                <th>FPR</th>
-                <th>FNR</th>
-              </tr>
-            </thead>
-            <tbody>
-              {NBAIOT_BENCHMARK_ROWS.map((row) => (
-                <tr key={row.model}>
-                  <td><span className="table-primary">{row.model}</span></td>
-                  <td>{(row.accuracy * 100).toFixed(4)}%</td>
-                  <td>{(row.precision * 100).toFixed(4)}%</td>
-                  <td>{(row.recall * 100).toFixed(4)}%</td>
-                  <td><strong>{(row.f1 * 100).toFixed(4)}%</strong></td>
-                  <td>{(row.fpr * 100).toFixed(4)}%</td>
-                  <td>{(row.fnr * 100).toFixed(4)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '20px' }}>
-          <div className="soft-panel" style={{ padding: '16px' }}>
-            <div className="metric-label">Generalization comparison</div>
-            <img
-              src="/evaluation/nbaiot_generalization_comparison.png"
-              alt="N-BaIoT generalization comparison F1-score chart"
-              style={{ width: '100%', marginTop: '12px', borderRadius: '8px', background: '#fff' }}
-            />
-            <div className="table-secondary" style={{ marginTop: '8px' }}>
-              Kaynak: evaluation/results/nbaiot_generalization_comparison.png
-            </div>
-          </div>
-
-          <div className="soft-panel" style={{ padding: '16px' }}>
-            <div className="metric-label">Top feature importance</div>
-            <img
-              src="/evaluation/nbaiot_top_feature_importance.png"
-              alt="N-BaIoT top feature importance chart"
-              style={{ width: '100%', marginTop: '12px', borderRadius: '8px', background: '#fff' }}
-            />
-            <div className="table-secondary" style={{ marginTop: '8px' }}>
-              Kaynak: evaluation/results/nbaiot_top_feature_importance.png
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginTop: '20px' }}>
-          <div className="soft-panel" style={{ padding: '16px' }}>
-            <div className="metric-label">Device + Attack split matrix</div>
-            <img
-              src="/evaluation/nbaiot_device_attack_split_confusion_matrix.png"
-              alt="N-BaIoT Device plus Attack split confusion matrix"
-              style={{ width: '100%', marginTop: '12px', borderRadius: '8px', background: '#fff' }}
-            />
-            <div className="table-secondary" style={{ marginTop: '8px' }}>
-              Kaynak: evaluation/results/nbaiot_device_attack_split_confusion_matrix.png
-            </div>
-          </div>
-
-          <div className="soft-panel" style={{ padding: '16px' }}>
-            <div className="metric-label">Worst attack-family split matrix</div>
-            <img
-              src="/evaluation/nbaiot_attack_split_confusion_matrix_gafgyt.png"
-              alt="N-BaIoT held-out gafgyt attack split confusion matrix"
-              style={{ width: '100%', marginTop: '12px', borderRadius: '8px', background: '#fff' }}
-            />
-            <div className="table-secondary" style={{ marginTop: '8px' }}>
-              Kaynak: evaluation/results/nbaiot_attack_split_confusion_matrix_gafgyt.png
-            </div>
-          </div>
-        </div>
-
-        <div className="soft-panel" style={{ marginTop: '18px', padding: '16px' }}>
-          <div className="metric-label">Sunumda one cikarilacak sonuc</div>
-          <div style={{ marginTop: '8px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            Sunumda random split basarisini tek basina savunmak yerine genelleme sinirini acikca gosterin: Device Split RF F1-score
-            {(NBAIOT_KEY_FINDINGS.deviceSplitF1 * 100).toFixed(4)}%, fakat Attack Split RF F1-score {(NBAIOT_KEY_FINDINGS.attackSplitF1 * 100).toFixed(2)}%
-            ve Device+Attack Split RF F1-score {(NBAIOT_KEY_FINDINGS.deviceAttackSplitF1 * 100).toFixed(2)}%. Bu tablo modelin kapasitesini ve
-            ezberleme riskini birlikte raporlayan daha guvenilir akademik kanittir.
-          </div>
-        </div>
-      </div>
-    </div>
+  const renderCommandCenter = () => (
+    <CommandCenterView
+      devices={devices}
+      devicesLoading={devicesLoading}
+      devicesError={devicesError}
+      topologyData={topologyData}
+      topologyLoading={topologyLoading}
+      topologyRefreshing={topologyRefreshing}
+      topologyError={topologyError}
+      topologyLastUpdated={topologyLastUpdated}
+      trafficHistory={trafficHistory}
+      historyLoading={historyLoading}
+      historyError={historyError}
+      liveFlows={liveFlows}
+      livePackets={livePackets}
+      trafficLoading={trafficLoading}
+      trafficError={trafficError}
+      systemMetrics={systemMetrics}
+      metricsLoading={metricsLoading}
+      metricsError={metricsError}
+      scanJobs={scanJobs}
+      scanState={scanState}
+      scanStateMeta={scanStateMeta}
+      scanLoading={scanLoading}
+      scanProgress={scanProgress}
+      scanError={scanError}
+      monitorStatus={monitorStatus}
+      monitoringActive={monitoringActive}
+      monitorActionLoading={monitorActionLoading}
+      monitorError={monitorError}
+      selectedDevice={selectedDevice}
+      onSelectDevice={setSelectedDevice}
+      onStartScan={startScan}
+      onRefreshTopology={() => fetchTopology({ showLoading: true })}
+      onToggleMonitoring={toggleMonitoring}
+      apiBaseUrl={API_BASE_URL}
+    />
   )
 
   const renderContent = () => {
-    if (selectedDevice) {
+    if (selectedDevice && activeTab !== 'command') {
       return (
         <DeviceDetailView
           device={selectedDevice}
@@ -830,11 +645,13 @@ const App = () => {
     }
 
     switch (activeTab) {
-      case 'inventory':
+      case 'command':
+        return renderCommandCenter()
+      case 'devices':
         return <InventoryView devices={devices} onSelectDevice={setSelectedDevice} loading={devicesLoading} error={devicesError} />
-      case 'vulnerabilities':
+      case 'evidence':
         return <VulnerabilityView devices={devices} />
-      case 'anomalies':
+      case 'live':
         return (
           <AnomalyView
             devices={devices}
@@ -855,10 +672,6 @@ const App = () => {
             onToggleMonitoring={toggleMonitoring}
           />
         )
-      case 'packets':
-        return <PacketListView packets={livePackets} loading={trafficLoading} error={trafficError} />
-      case 'flows':
-        return <FlowSummaryView flows={liveFlows} loading={trafficLoading} error={trafficError} />
       case 'topology':
         return (
           <TopologyView
@@ -881,10 +694,37 @@ const App = () => {
             }}
           />
         )
-      case 'metrics':
-        return renderMetricsView()
+      case 'validation':
+        return <MetricsView systemMetrics={systemMetrics} metricsLoading={metricsLoading} metricsError={metricsError} />
+      case 'settings':
+        return (
+          <div className="card settings-panel">
+            <div className="section-header">
+              <div>
+                <h3 style={{ margin: 0 }}>Ayarlar</h3>
+                <div className="section-subtitle" style={{ marginTop: '6px' }}>
+                  Backend sözleşmesi değiştirilmeden okunabilir çalışma durumu ve yapılandırma notları.
+                </div>
+              </div>
+            </div>
+            <div className="settings-grid">
+              <div className="soft-panel device-summary-tile">
+                <div className="metric-label">API Base URL</div>
+                <div className="metric-value">{API_BASE_URL}</div>
+              </div>
+              <div className="soft-panel device-summary-tile">
+                <div className="metric-label">Canlı yakalama penceresi</div>
+                <div className="metric-value">{LIVE_CAPTURE_WINDOW_SECONDS}s</div>
+              </div>
+              <div className="soft-panel device-summary-tile">
+                <div className="metric-label">Runtime metrics</div>
+                <div className="metric-value">{systemMetrics?.runtime_metrics_metadata?.source || 'not_available'}</div>
+              </div>
+            </div>
+          </div>
+        )
       default:
-        return null
+        return renderCommandCenter()
     }
   }
 
@@ -929,31 +769,31 @@ const App = () => {
 
         <nav style={{ marginTop: 'auto' }}>
           <div className="sidebar-nav-group">
-            <div className="sidebar-section-label">Operasyonlar</div>
-            <div className={`nav-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => openTab('inventory')}>
-              <LayoutDashboard size={20} /> Envanter
+            <div className="sidebar-section-label">Command Center</div>
+            <div className={`nav-item ${activeTab === 'command' ? 'active' : ''}`} onClick={() => openTab('command')}>
+              <LayoutDashboard size={20} /> Command
             </div>
-            <div className={`nav-item ${activeTab === 'vulnerabilities' ? 'active' : ''}`} onClick={() => openTab('vulnerabilities')}>
-              <AlertTriangle size={20} /> Servis Görünürlüğü
+            <div className={`nav-item ${activeTab === 'devices' ? 'active' : ''}`} onClick={() => openTab('devices')}>
+              <Database size={20} /> Devices
             </div>
-            <div className={`nav-item ${activeTab === 'metrics' ? 'active' : ''}`} onClick={() => openTab('metrics')}>
-              <BarChart3 size={20} /> Doğrulama ve Özet
+            <div className={`nav-item ${activeTab === 'topology' ? 'active' : ''}`} onClick={() => openTab('topology')}>
+              <Share2 size={20} /> Topology
             </div>
           </div>
 
           <div className="sidebar-nav-group">
-            <div className="sidebar-section-label">Canlı Analiz</div>
-            <div className={`nav-item ${activeTab === 'anomalies' ? 'active' : ''}`} onClick={() => openTab('anomalies')}>
-              <Activity size={20} /> İzleme
+            <div className="sidebar-section-label">Operations</div>
+            <div className={`nav-item ${activeTab === 'live' ? 'active' : ''}`} onClick={() => openTab('live')}>
+              <Activity size={20} /> Live
             </div>
-            <div className={`nav-item ${activeTab === 'packets' ? 'active' : ''}`} onClick={() => openTab('packets')}>
-              <List size={20} /> Paket Akışı
+            <div className={`nav-item ${activeTab === 'evidence' ? 'active' : ''}`} onClick={() => openTab('evidence')}>
+              <AlertTriangle size={20} /> Evidence
             </div>
-            <div className={`nav-item ${activeTab === 'flows' ? 'active' : ''}`} onClick={() => openTab('flows')}>
-              <Waves size={20} /> Canlı Akışlar
+            <div className={`nav-item ${activeTab === 'validation' ? 'active' : ''}`} onClick={() => openTab('validation')}>
+              <BarChart3 size={20} /> Validation
             </div>
-            <div className={`nav-item ${activeTab === 'topology' ? 'active' : ''}`} onClick={() => openTab('topology')}>
-              <Share2 size={20} /> Topoloji
+            <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => openTab('settings')}>
+              <List size={20} /> Settings
             </div>
           </div>
         </nav>
@@ -965,13 +805,13 @@ const App = () => {
             <h1 className="page-title">
               {selectedDevice ? `Cihaz Detayları: ${selectedDevice.ip}` : (
                 <>
-                  {activeTab === 'inventory' && 'Cihaz Envanteri'}
-                  {activeTab === 'vulnerabilities' && 'Servis Görünürlüğü'}
-                  {activeTab === 'anomalies' && 'İzleme Görünümü'}
-                  {activeTab === 'packets' && 'Paket Akışı'}
-                  {activeTab === 'flows' && 'Canlı Akışlar'}
+                  {activeTab === 'command' && 'Security Operations Cockpit'}
+                  {activeTab === 'devices' && 'Cihaz Envanteri'}
                   {activeTab === 'topology' && 'Ağ Topolojisi'}
-                  {activeTab === 'metrics' && 'Doğrulama ve Özet'}
+                  {activeTab === 'live' && 'Canlı Operasyonlar'}
+                  {activeTab === 'evidence' && 'Servis Kanıtları'}
+                  {activeTab === 'validation' && 'Doğrulama ve Özet'}
+                  {activeTab === 'settings' && 'Ayarlar'}
                 </>
               )}
               {headerError && (
@@ -983,7 +823,9 @@ const App = () => {
             <p className="page-copy">
               {selectedDevice
                 ? 'Bu cihaz için risk geçmişini, izleme olaylarını, açık servisleri ve cihaza özel YZ yönlendirmesini inceleyin.'
-                : 'Cihaz envanterini, izleme etkinliğini, servis görünürlüğünü ve cihaza özel güvenlik yönlendirmesini tek yerden izleyin.'}
+                : activeTab === 'command'
+                  ? 'Topoloji, öncelik kuyruğu, canlı akışlar ve cihaz istihbaratını tek operasyon kokpitinde izleyin.'
+                  : 'Cihaz envanterini, izleme etkinliğini, servis görünürlüğünü ve cihaza özel güvenlik yönlendirmesini tek yerden izleyin.'}
             </p>
           </div>
 
