@@ -104,21 +104,6 @@ const describeRequestFailure = (err, fallback) => {
   return fallback
 }
 
-const formatFalsePositiveRate = (summary) => {
-  const falsePositives = Number(summary?.false_positives || 0)
-  const truePositives = Number(summary?.true_positives || 0)
-
-  if (falsePositives === 0 && truePositives === 0) {
-    return '0.0%'
-  }
-
-  if (truePositives === 0) {
-    return 'Yok'
-  }
-
-  return `${((falsePositives / truePositives) * 100).toFixed(1)}%`
-}
-
 const formatJobFailure = (job) => {
   if (!job) {
     return 'Bilinmeyen tarama hatası.'
@@ -650,7 +635,7 @@ const App = () => {
 
         <div className="card flex-col p-0" style={{ padding: '24px' }}>
           <h3 className="flex-row items-center gap-2 mb-4" style={{ margin: 0 }}>
-            <Shield size={18} color="var(--success)" /> Operasyon Özeti
+            <Shield size={18} color="var(--success)" /> Runtime Metrics Status
           </h3>
           {metricsLoading ? (
             <div className="empty-state p-0" style={{ minHeight: '160px' }}>
@@ -662,28 +647,34 @@ const App = () => {
               <AlertTriangle className="empty-state-icon" style={{ color: 'var(--danger)', width: '36px', height: '36px' }} />
               <div className="empty-state-copy" style={{ color: 'var(--danger)' }}>{metricsError}</div>
             </div>
-          ) : systemMetrics ? (
+          ) : systemMetrics?.runtime_detection_metrics ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Tespit Edilen Anomaliler (24s)</span>
-                <span style={{ fontWeight: 600, color: 'var(--danger)' }}>{systemMetrics.real_world_metrics?.anomalies_detected_24h || 0}</span>
+                <span>Runtime TP / FP</span>
+                <span style={{ fontWeight: 600 }}>
+                  {systemMetrics.runtime_detection_metrics.true_positives ?? 'N/A'} / {systemMetrics.runtime_detection_metrics.false_positives ?? 'N/A'}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Yanlış Pozitif Oranı</span>
-                <span style={{ fontWeight: 600 }}>{formatFalsePositiveRate(systemMetrics.real_world_metrics)}</span>
+                <span>Runtime F1</span>
+                <span style={{ fontWeight: 600 }}>{systemMetrics.runtime_detection_metrics.f1_score ?? 'N/A'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Raporlanan Çalışma Süresi</span>
-                <span style={{ fontWeight: 600 }}>{systemMetrics.real_world_metrics?.system_uptime || 'Yok'}</span>
+                <span>Kaynak</span>
+                <span style={{ fontWeight: 600 }}>{systemMetrics.runtime_metrics_metadata?.source || 'unknown'}</span>
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                <Info size={12} /> Canlı izleme değerleri şu anda en güncel backend özetini yansıtır.
+                <Info size={12} /> {systemMetrics.runtime_metrics_metadata?.note || 'Runtime metrics require labelled live events.'}
               </div>
             </div>
           ) : (
             <div className="empty-state p-0" style={{ minHeight: '160px' }}>
               <BarChart3 className="empty-state-icon" style={{ width: '36px', height: '36px' }} />
-              <div className="empty-state-copy">Henüz operasyon özeti bulunmuyor.</div>
+              <div className="empty-state-title">Runtime metrikleri mevcut degil</div>
+              <div className="empty-state-copy">
+                Runtime TP/FP/F1 metrikleri etiketli canli olay gerektirir ve bu prototipte uretilmez.
+                N-BaIoT sonuclari ayri bir offline benchmark olarak asagida gosterilir.
+              </div>
             </div>
           )}
         </div>

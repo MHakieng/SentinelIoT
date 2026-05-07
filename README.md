@@ -1,6 +1,6 @@
 # Sentinel-IoT
 
-Sentinel-IoT; IoT aglari icin cihaz kesfi, zafiyet tarama, pasif trafik analizi, ML tabanli anomali tespiti, risk skorlama ve React dashboard sunan akademik bir full-stack guvenlik projesidir.
+Sentinel-IoT; IoT aglari icin cihaz kesfi, servis/zafiyet gorunurlugu, pasif trafik analizi, ML tabanli anomali sinyali, risk skorlama ve React dashboard sunan akademik bir full-stack guvenlik prototipidir.
 
 N-BaIoT veri seti bu projede canli sistemin veri kaynagi olarak degil, offline model dogrulama ve benchmark amaciyla kullanilmistir.
 
@@ -8,11 +8,11 @@ N-BaIoT veri seti bu projede canli sistemin veri kaynagi olarak degil, offline m
 
 - Network scan ve cihaz envanteri
 - Device fingerprinting
-- Vulnerability/CVE analizi
+- Nmap script ciktilarindan CVE gorunurlugu
 - Passive traffic monitoring
 - Flow-based feature extraction
-- Isolation Forest anomali tespiti
-- CVE + anomaly agirlikli hybrid risk scoring
+- Isolation Forest anomali sinyali
+- Servis/CVE gorunurlugu + anomaly agirlikli hybrid risk scoring
 - React/Vite dashboard
 - Interaktif ag topolojisi
 - N-BaIoT offline evaluation benchmark
@@ -20,10 +20,10 @@ N-BaIoT veri seti bu projede canli sistemin veri kaynagi olarak degil, offline m
 ## Mimari
 
 - Backend: FastAPI
-- Scanner: Nmap, ARP/ICMP, OUI, SSDP, HTTP title
+- Scanner: Nmap host/service discovery, OUI, SSDP, HTTP title/server header enrichment
 - Monitor: Scapy ile paket/flow izleme
-- ML: Isolation Forest tabanli anomali tespiti
-- Risk Engine: CVE riski ve anomali skorunu birlestiren weighted score
+- ML: Isolation Forest tabanli anomali sinyali
+- Risk Engine: servis/CVE gorunurlugu, port baglami, asset type ve anomali skorunu birlestiren weighted score
 - Frontend: React + Vite
 - Database: SQLite
 - Evaluation: N-BaIoT offline benchmark ve dogrulama scriptleri
@@ -32,19 +32,19 @@ N-BaIoT veri seti bu projede canli sistemin veri kaynagi olarak degil, offline m
 
 ```text
 .
-├── sentinel_iot/
-│   ├── api/                 # FastAPI app ve routerlar
-│   ├── scanner/             # Ag tarama ve cihaz kesfi
-│   ├── monitor/             # Paket izleme ve flow cikarma
-│   ├── ml/                  # Anomali modeli yardimcilari
-│   ├── database/            # SQLAlchemy modelleri ve DB baglantisi
-│   ├── services/            # LLM ve is mantigi servisleri
-│   ├── schemas/             # Pydantic semalari
-│   ├── tests/               # Backend testleri
-│   └── dashboard/react_app/ # React/Vite dashboard
-├── evaluation/              # Offline dogrulama ve N-BaIoT benchmark scriptleri
-├── docs/                    # Rapor, sunum ve GitHub hazirlik dokumanlari
-└── *.ps1                    # Windows kurulum/calistirma yardimci scriptleri
+|-- sentinel_iot/
+|   |-- api/                 # FastAPI app ve routerlar
+|   |-- scanner/             # Ag tarama ve cihaz kesfi
+|   |-- monitor/             # Paket izleme ve flow cikarma
+|   |-- ml/                  # Anomali modeli yardimcilari
+|   |-- database/            # SQLAlchemy modelleri ve DB baglantisi
+|   |-- services/            # LLM ve is mantigi servisleri
+|   |-- schemas/             # Pydantic semalari
+|   |-- tests/               # Backend testleri
+|   `-- dashboard/react_app/ # React/Vite dashboard
+|-- evaluation/              # Offline dogrulama ve N-BaIoT benchmark scriptleri
+|-- docs/                    # Rapor, sunum ve GitHub hazirlik dokumanlari
+`-- *.ps1                    # Windows kurulum/calistirma yardimci scriptleri
 ```
 
 ## Gereksinimler
@@ -54,7 +54,7 @@ N-BaIoT veri seti bu projede canli sistemin veri kaynagi olarak degil, offline m
 - Nmap
 - Windows veya Linux
 
-Packet capture ve active scan islemleri icin isletim sistemine gore yonetici/root yetkisi gerekebilir.
+Packet capture ve active scan islemleri icin isletim sistemine gore yonetici/root yetkisi gerekebilir. Pasif izleme sadece calistigi makinenin gorebildigi trafiği yakalar; switched network, Wi-Fi istemci izolasyonu veya SPAN/mirror olmayan ortamlarda tum ag trafigi gorulemeyebilir.
 
 ## Kurulum
 
@@ -171,6 +171,10 @@ Bu sonuclar offline N-BaIoT benchmark sonucudur; canli Sentinel-IoT sistem basar
 
 Leakage supheli feature: `HH_jit_L0.01_mean`.
 
+Canli Sentinel-IoT runtime modeli 6 numeric flow feature kullanir: `packet_count`, `byte_count`, `duration`, `avg_packet_size`, `mean_iat`, `var_iat`. N-BaIoT benchmark modelleri ise 115 numeric feature uzerinde egitilmistir. Bu nedenle N-BaIoT modeli dogrudan canli sisteme baglanmamistir.
+
+`/metrics` endpointi canli sistem icin TP/FP/F1 gibi etiketli operasyon basari metrikleri uretmez. Bu metrikler etiketli canli olay gerektirir; prototipte bu alan `runtime_detection_metrics: null` ve `source: not_available` metadata ile doner. Offline N-BaIoT benchmark sonuclari ayri tutulur ve canli sistem basarisi olarak yorumlanmamalidir.
+
 Detayli analiz icin:
 
 ```text
@@ -182,8 +186,11 @@ docs/evaluation_results/
 ## Sinirliliklar
 
 - N-BaIoT modeli canli Sentinel-IoT sistemine dogrudan entegre edilmemistir.
-- N-BaIoT modeli 115 feature bekler; mevcut canli sistem daha sinirli flow feature seti uretir.
-- Packet capture ve Nmap scan islemleri yetki gerektirebilir.
+- N-BaIoT modeli 115 feature bekler; mevcut canli sistem 6 numeric flow feature uretir.
+- Runtime model dosyasi repo disinda tutulur; yeni kurulumda model yoksa runtime anomaly sonucu sinirli kalabilir veya yeniden egitim gerekebilir.
+- Packet capture ve Nmap scan islemleri yetki gerektirebilir; Nmap yalnizca izinli/kontrollu aglarda calistirilmalidir.
+- Packet capture tum agi garanti etmez; sadece cihaz/interfacenin gorebildigi paketleri yakalar.
+- CVE gorunurlugu Nmap script ciktilarina baglidir; CVSS skoru her CVE icin garanti degildir.
 - JWT/OAuth2 tabanli kullanici kimlik dogrulama bu asamada kapsam disidir.
 - Gercek production deployment yapilmamistir.
 - Offline benchmark sonuclari canli ag performansi olarak sunulmamalidir.
@@ -192,6 +199,7 @@ docs/evaluation_results/
 
 - Mevcut 6 live feature ile supervised model egitimi
 - N-BaIoT benzeri 115 feature live extractor gelistirme
+- Runtime model icin periodic batch retraining akisini daha acik yonetmek
 - JWT/OAuth2 kimlik dogrulama
 - Docker deployment
 - Daha genis gercek ag testleri

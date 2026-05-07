@@ -18,7 +18,7 @@ FNR: 0.000007
 
 ## Attack-Family Split Sonucu Ne Gosteriyor?
 
-Attack-family split deneyinde bir saldiri ailesi tamamen testte tutulur. Bu test, modelin sadece belirli saldiri ailesini ezberleyip ezberlemedigini analiz eder.
+Attack-family split deneyinde bir saldiri ailesi test tarafinda disarida tutulur. Bu test, modelin belirli saldiri ailesine asiri bagimli olup olmadigini analiz eder.
 
 Sonuclar:
 
@@ -32,7 +32,7 @@ Bu dusus, random split sonucunun model kapasitesini gosterse de genelleme guveni
 
 ## Device + Attack Split Sonucu Ne Gosteriyor?
 
-Device + attack split deneyinde model hem gormedigi cihazlarda hem de gormedigi saldiri ailesinde test edilir. Bu, en zor ve akademik olarak en guvenilir genelleme testlerinden biridir.
+Device + attack split deneyinde model hem egitimde kullanilmayan cihazlarda hem de egitimde kullanilmayan saldiri ailesinde test edilir. Bu, daha zor ve akademik olarak daha temkinli yorumlanmasi gereken genelleme testlerinden biridir.
 
 Sonuclar:
 
@@ -42,7 +42,7 @@ Held-out gafgyt F1: 0.725956
 Ortalama F1: 0.806298
 ```
 
-Bu sonuc, modelin tamamen ezberlemedigini ama saldiri ailesi degistiginde performansin belirgin dustugunu gosterir.
+Bu sonuc, modelin N-BaIoT icindeki her senaryoda ayni seviyede genellemedigini ve saldiri ailesi degistiginde performansin belirgin dustugunu gosterir.
 
 ## Balanced Benchmark Sonucu Ne Gosteriyor?
 
@@ -68,7 +68,7 @@ Top bulgu:
 HH_jit_L0.01_mean single-feature F1: 0.958079
 ```
 
-Bu feature tek basina cok yuksek ayirt edicilik gosterdigi icin `leakage_suspect=True` olarak isaretlenmistir. Bu feature silinmemistir; sadece akademik raporda dikkat edilmesi gereken bir kanit olarak tutulmustur.
+Bu feature tek basina cok yuksek ayirt edicilik gosterdigi icin `leakage_suspect=True` olarak isaretlenmistir. Bu feature silinmemistir; akademik raporda dikkat edilmesi gereken bir bulgu olarak tutulmustur.
 
 ## Model Projeye Dogrudan Entegre Edilebilir mi?
 
@@ -87,7 +87,7 @@ mean_iat
 var_iat
 ```
 
-Bu semalar farkli oldugu icin model dogrudan production path'e baglanamaz.
+Bu semalar farkli oldugu icin model dogrudan canli runtime path'e baglanamaz.
 
 ## Canli Entegrasyon Icin Iki Secenek
 
@@ -96,7 +96,7 @@ Bu semalar farkli oldugu icin model dogrudan production path'e baglanamaz.
 
 ## Final Oneri
 
-N-BaIoT sonuclari offline benchmark ve akademik kanit olarak tutulmali; canli Sentinel-IoT entegrasyonu icin ise once feature semasi uyumlu hale getirilmelidir. Sunumda random split yerine device split, attack-family split ve device+attack split sonuclari genelleme kaniti olarak one cikarilmalidir.
+N-BaIoT sonuclari offline benchmark ve akademik dogrulama ciktisi olarak tutulmali; canli Sentinel-IoT entegrasyonu icin ise once feature semasi uyumlu hale getirilmelidir. Sunumda random split model kapasitesi olarak, device split, attack-family split ve device+attack split sonuclari ise genelleme sinirlarini gosteren testler olarak one cikarilmalidir.
 
 Final yorum:
 

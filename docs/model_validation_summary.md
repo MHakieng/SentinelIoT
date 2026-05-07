@@ -1,6 +1,6 @@
 # Model Dogrulama ve Genelleme Analizi
 
-Sentinel-IoT projesinde N-BaIoT veri seti, canli sistemin yerine gecen bir veri kaynagi olarak degil, ML/anomali tespit yaklasiminin olculebilir sekilde dogrulanmasi icin kullanilmistir. Bu bolumun amaci, modelin yalnizca egitim verisini ezberleyip ezberlemedigini incelemek ve final raporda genelleme guvenilirligini acik sekilde ortaya koymaktir.
+Sentinel-IoT projesinde N-BaIoT veri seti, canli sistemin yerine gecen bir veri kaynagi olarak degil, ML/anomali tespit yaklasimini etiketli IoT botnet verisi uzerinde offline olarak degerlendirmek icin kullanilmistir. Bu bolumun amaci, modelin yalnizca egitim dagilimina cok benzeyen kayitlari mi ayirdigini yoksa daha zor genelleme senaryolarinda da makul sonuc verip vermedigini incelemektir.
 
 ## 1. Testler Neden Yapildi?
 
@@ -14,7 +14,7 @@ Bu testler uc soruya cevap vermek icin tasarlanmistir:
 
 ## 2. Random Split Neden Tek Basina Yeterli Degil?
 
-Random split yaklasiminda ayni cihazlardan, ayni saldiri ailelerinden ve cok benzer trafik pencerelerinden gelen kayitlar hem egitim hem test tarafina dagilabilir. Bu durumda test seti gercek hayattaki tamamen yeni bir senaryoyu temsil etmek yerine, egitim dagilimina cok yakin bir orneklem haline gelir.
+Random split yaklasiminda ayni cihazlardan, ayni saldiri ailelerinden ve cok benzer trafik pencerelerinden gelen kayitlar hem egitim hem test tarafina dagilabilir. Bu durumda test seti gercek hayattaki yeni cihaz/yeni saldiri senaryosunu temsil etmek yerine, egitim dagilimina cok yakin bir orneklem haline gelebilir.
 
 Bu projede random split sonuclari su sekildedir:
 
@@ -35,7 +35,7 @@ Device Split RF sonucu:
 | --- | ---: |
 | Device Split RF | 0.999206 |
 
-Bu sonuc, modelin farkli cihazlara ayrildiginda da N-BaIoT kapsaminda yuksek performans gosterdigini ortaya koyar. Buna ragmen bu deneyde saldiri aileleri tamamen ayrilmadigi icin, modelin yeni saldiri turlerine genelleme kabiliyeti icin ek test gerekir.
+Bu sonuc, modelin farkli cihazlara ayrildiginda da N-BaIoT kapsaminda yuksek performans gosterdigini gosterir. Buna ragmen bu deneyde saldiri aileleri egitim ve test tarafinda ortak kalabildigi icin, modelin yeni saldiri turlerine genelleme kabiliyeti icin ek test gerekir.
 
 ## 4. Attack Split Ne Gosterdi?
 
@@ -64,16 +64,16 @@ Bu analiz feature'in mutlaka hatali oldugunu kanitlamaz; ancak modelin bazi N-Ba
 
 ## 6. N-BaIoT Modeli Neden Canli Sentinel-IoT Sistemine Dogrudan Entegre Edilmedi?
 
-N-BaIoT modeli 115 adet N-BaIoT feature'i ile egitilmistir. Canli Sentinel-IoT sistemi ise mevcut monitor akisinda daha sinirli bir live flow feature seti kullanir. Bu nedenle egitimde kullanilan feature semasi ile canli sistemin urettigi feature semasi ayni degildir.
+N-BaIoT modeli 115 adet N-BaIoT feature'i ile egitilmistir. Canli Sentinel-IoT sistemi ise mevcut monitor akisinda 6 numeric live flow feature kullanir: `packet_count`, `byte_count`, `duration`, `avg_packet_size`, `mean_iat`, `var_iat`. Bu nedenle egitimde kullanilan feature semasi ile canli sistemin urettigi feature semasi ayni degildir.
 
 Dogudan entegrasyon yapilmamasinin temel nedenleri:
 
-- Feature sayisi ve anlamlari canli sistem ile birebir uyusmamaktadir.
+- Feature sayisi ve anlamlari canli sistem ile birebir uyusmamaktadir: N-BaIoT 115 feature, canli Sentinel-IoT 6 live numeric feature kullanir.
 - N-BaIoT etiketli bir benchmark veri setidir; Sentinel-IoT'un canli ag akisindan toplanmis veri kaynagi degildir.
 - Random split sonuclari cok yuksek olsa da attack split ve feature leakage analizi genelleme riskini gostermistir.
 - Canli sisteme dogrudan baglamak, teknik olarak yanlis guven algisi olusturabilir.
 
-Bu nedenle N-BaIoT modeli bu asamada uretim modeli olarak degil, akademik benchmark ve dogrulama kaniti olarak tutulmustur.
+Bu nedenle N-BaIoT modeli bu asamada uretim modeli olarak degil, offline akademik benchmark ve dogrulama ciktisi olarak tutulmustur.
 
 ## 7. Gelecek Calisma ve Entegrasyon Yolu
 
@@ -89,4 +89,4 @@ Bu yaklasimda canli sistemde halihazirda uretilen feature'lar kullanilir. Kontro
 
 ## Sonuc
 
-N-BaIoT deneyleri, Sentinel-IoT projesinde ML dogrulamasinin yalnizca tek bir yuksek skorla sinirli tutulmadigini gostermektedir. Random split, balanced split ve device split sonuclari modelin veri seti icinde cok guclu ayrim yapabildigini; attack split ve device + attack split sonuclari ise yeni saldiri ailesine genelleme konusunda daha temkinli yorum yapilmasi gerektigini ortaya koymustur. Feature leakage analizi de bazi feature'larin dataset'e ozgu guclu sinyaller tasiyabilecegini gostermistir. Bu nedenle N-BaIoT modeli dogrudan canli sisteme entegre edilmemis, final raporda benchmark ve genelleme analizi olarak konumlandirilmistir.
+N-BaIoT deneyleri, Sentinel-IoT projesinde ML dogrulamasinin yalnizca tek bir yuksek skorla sinirli tutulmadigini gostermektedir. Random split, balanced split ve device split sonuclari modelin veri seti icinde guclu ayrim yapabildigini; attack split ve device + attack split sonuclari ise yeni saldiri ailesine genelleme konusunda daha temkinli yorum yapilmasi gerektigini ortaya koymustur. Feature leakage analizi de bazi feature'larin dataset'e ozgu guclu sinyaller tasiyabilecegini gostermistir. Bu nedenle N-BaIoT modeli dogrudan canli sisteme entegre edilmemis, final raporda offline benchmark ve genelleme analizi olarak konumlandirilmistir.

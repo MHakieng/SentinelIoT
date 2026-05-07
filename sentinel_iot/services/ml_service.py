@@ -20,17 +20,18 @@ class MLService:
         """Retrieve model performance metrics."""
         with self.anomaly_model.metrics_lock:
             m = self.anomaly_model.metrics.copy()
-            
-        real_metrics = {
-            "anomalies_detected_24h": 12,
-            "true_positives": 10,
-            "false_positives": 2,
-            "system_uptime": "99.9%"
-        }
-        
+
         return {
             "synthetic_training_metrics": m,
-            "real_world_metrics": real_metrics,
+            "runtime_detection_metrics": None,
+            "runtime_metrics_metadata": {
+                "source": "not_available",
+                "is_placeholder": False,
+                "note": (
+                    "Runtime TP/FP/F1 metrics require labelled production events "
+                    "and are not available in this prototype."
+                ),
+            },
             "model_version": "Isolation Forest v2.0",
             "last_training": last_scan_time or "N/A"
         }

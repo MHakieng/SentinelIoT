@@ -10,15 +10,15 @@ class TrainingMetrics(BaseModel):
     validation_status: str = "unavailable"
 
 
-class RealWorldMetrics(BaseModel):
-    anomalies_detected_24h: int = 0
-    true_positives: int = 0
-    false_positives: int = 0
-    system_uptime: str = "N/A"
+class RuntimeMetricsMetadata(BaseModel):
+    source: str = "not_available"
+    is_placeholder: bool = False
+    note: str
 
 
 class MetricsResponse(BaseModel):
     synthetic_training_metrics: TrainingMetrics
-    real_world_metrics: RealWorldMetrics
+    runtime_detection_metrics: Optional[dict] = None
+    runtime_metrics_metadata: RuntimeMetricsMetadata
     model_version: str
     last_training: str

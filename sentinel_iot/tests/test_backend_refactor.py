@@ -28,7 +28,10 @@ def test_get_status():
 def test_get_metrics():
     response = client.get("/metrics")
     assert response.status_code == 200
-    assert "real_world_metrics" in response.json()
+    data = response.json()
+    assert "real_world_metrics" not in data
+    assert data["runtime_detection_metrics"] is None
+    assert data["runtime_metrics_metadata"]["source"] == "not_available"
 
 if __name__ == "__main__":
     pytest.main([__file__])

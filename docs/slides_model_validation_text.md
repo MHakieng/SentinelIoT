@@ -10,7 +10,7 @@ Random split sonucunda egitim ve test tarafinda ayni cihazlardan ve ayni saldiri
 
 ## Slayt 3 - Device Split Sonucu
 
-Device split deneyinde cihazlar egitim ve test tarafinda ayrildi. Random Forest bu senaryoda F1 = 0.999206 sonucunu verdi. Bu sonuc, modelin N-BaIoT kapsaminda farkli cihazlara karsi da yuksek performans gosterdigini gosteriyor. Ancak bu testte saldiri aileleri tamamen ayrilmadigi icin daha zor bir test olarak attack split uygulandi.
+Device split deneyinde cihazlar egitim ve test tarafinda ayrildi. Random Forest bu senaryoda F1 = 0.999206 sonucunu verdi. Bu sonuc, modelin N-BaIoT kapsaminda farkli cihazlara karsi da yuksek performans gosterdigini gosteriyor. Ancak bu testte saldiri aileleri egitim ve test tarafinda ortak kalabildigi icin daha zor bir test olarak attack split uygulandi.
 
 ## Slayt 4 - Attack Split ve Device + Attack Split
 
@@ -26,12 +26,12 @@ Feature leakage analizinde `HH_jit_L0.01_mean` feature'i tek basina F1 = 0.95807
 
 ## Slayt 7 - Neden Dogrudan Canli Sisteme Entegre Edilmedi?
 
-N-BaIoT modeli 115 numeric feature ile egitildi. Canli Sentinel-IoT monitor akisi ise ayni feature semasini uretmiyor. Bu nedenle modeli dogrudan canli sisteme baglamak teknik olarak dogru degil. Bu model su an uretim modeli degil; final rapor ve sunum icin akademik benchmark ve dogrulama calismasi olarak kullanildi.
+N-BaIoT modeli 115 numeric feature ile egitildi. Canli Sentinel-IoT monitor akisi ise 6 numeric live feature uretiyor: packet_count, byte_count, duration, avg_packet_size, mean_iat ve var_iat. Bu nedenle modeli dogrudan canli sisteme baglamak teknik olarak dogru degil. Bu model su an uretim modeli degil; final rapor ve sunum icin offline akademik benchmark ve dogrulama calismasi olarak kullanildi.
 
 ## Slayt 8 - Gelecek Entegrasyon Yolu
 
-Canli entegrasyon icin iki yol onerildi. Birinci yol, N-BaIoT ile uyumlu 115 feature'lik live feature extractor gelistirmek. Ikinci ve daha uygulanabilir yol, Sentinel-IoT'un mevcut live feature setiyle kontrollu veri toplayip ayri bir supervised model egitmek. Bu asamada en dogru karar, N-BaIoT modelini dogrudan entegre etmek yerine benchmark olarak tutmak ve canli sisteme uygun ayri model egitimine gecmektir.
+Canli entegrasyon icin iki yol onerildi. Birinci yol, N-BaIoT ile uyumlu 115 feature'lik live feature extractor gelistirmek. Ikinci ve daha uygulanabilir yol, Sentinel-IoT'un mevcut 6 live feature setiyle kontrollu veri toplayip ayri bir supervised model egitmek. Bu asamada en dogru karar, N-BaIoT modelini dogrudan entegre etmek yerine benchmark olarak tutmak ve canli sisteme uygun ayri model egitimine gecmektir.
 
 ## Tek Paragraflik Sunum Metni
 
-Bu projede N-BaIoT veri seti, Sentinel-IoT'un canli veri kaynagi olarak degil, model dogrulama ve benchmark amaciyla kullanilmistir. Random Forest random split F1 = 0.999994 gibi cok yuksek bir sonuc vermis olsa da, bu sonucun tek basina genelleme kaniti olmadigi gorulmustur. Bu nedenle device split, attack split, device + attack split ve feature leakage analizleri yapilmistir. Attack split ortalama F1 = 0.803536 ve device + attack split ortalama F1 = 0.806298 sonuclari, modelin yeni saldiri ailesine gectiginde performansinin daha gercekci seviyeye indigini gostermistir. Ayrica `HH_jit_L0.01_mean` feature'inin tek basina F1 = 0.958079 vermesi dataset'e ozgu guclu sinyal riskini ortaya koymustur. Bu nedenle N-BaIoT modeli canli sisteme dogrudan entegre edilmemis, akademik dogrulama kaniti olarak konumlandirilmistir.
+Bu projede N-BaIoT veri seti, Sentinel-IoT'un canli veri kaynagi olarak degil, model dogrulama ve benchmark amaciyla kullanilmistir. Random Forest random split F1 = 0.999994 gibi cok yuksek bir sonuc vermis olsa da, bu sonucun tek basina genelleme kaniti olmadigi gorulmustur. Bu nedenle device split, attack split, device + attack split ve feature leakage analizleri yapilmistir. Attack split ortalama F1 = 0.803536 ve device + attack split ortalama F1 = 0.806298 sonuclari, modelin yeni saldiri ailesine gectiginde performansinin daha gercekci seviyeye indigini gostermistir. Ayrica `HH_jit_L0.01_mean` feature'inin tek basina F1 = 0.958079 vermesi dataset'e ozgu guclu sinyal riskini ortaya koymustur. Bu nedenle N-BaIoT modeli canli sisteme dogrudan entegre edilmemis, offline akademik dogrulama ciktisi olarak konumlandirilmistir.
