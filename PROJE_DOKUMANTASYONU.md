@@ -1,99 +1,122 @@
-# Sentinel-IoT Proje Dokumantasyonu
+# Sentinel-IoT Detayli Proje Dokumantasyonu
 
-## 1. Projenin Mevcut Asamasi
+Bu dokuman Sentinel-IoT projesinin final savunma ve rapor surecinde kullanilabilecek ana teknik referansidir. Amaci projenin ne yaptigini, nasil calistigini, hangi sinirlara sahip oldugunu, hangi muhendislik calismalarinin yapildigini ve hangi sonuclarin nasil yorumlanmasi gerektigini tek yerde aciklamaktir.
 
-Sentinel-IoT su anda calisan bir FastAPI + React tabanli IoT ag guvenligi prototipidir. Proje; yerel agdaki cihazlari kesfetme, acik servisleri goruntuleme, canli trafik akislarini izleme, davranissal anomali sinyali uretme, risk skoru hesaplama ve LLM destekli cihaz/CVE baglami sunma asamasina gelmistir.
+## 1. Kisa Proje Ozeti
 
-Bu asamada proje sadece arayuz demosu degil, test ve benchmark ciktisi uretebilen olculebilir bir akademik prototip haline getirilmistir. Backend testleri, frontend build/lint kontrolu, risk engine dogrulamasi, N-BaIoT offline benchmark calismasi ve canli sistem evaluation altyapisi eklenmistir.
+Sentinel-IoT; yerel agdaki IoT ve ag cihazlari icin cihaz kesfi, servis gorunurlugu, pasif trafik izleme, flow tabanli anomali sinyali, risk skorlama, LLM destekli analiz ve React dashboard sunan akademik bir full-stack guvenlik prototipidir.
+
+Proje bir production IDS/IPS urunu degildir. Paket engelleme, saldiri durdurma, sertifikali guvenlik korumasi veya tum ag trafigini garanti etme iddiasi yoktur. Dogru konumlandirma sudur:
+
+```text
+Calisan akademik IoT guvenlik gorunurlugu prototipi
++ offline ML benchmark ve model dogrulama calismasi
+```
 
 ## 2. Projenin Amaci
 
-Sentinel-IoT'un amaci, yerel agdaki IoT cihazlari icin asagidaki guvenlik gorunurlugunu tek bir panelde sunmaktir:
+Projenin ana hedefi, yerel agdaki cihazlari daha gorunur hale getirerek kullaniciya su sorularin cevabini vermektir:
 
-- Cihaz envanteri
-- Nmap tabanli ag ve servis taramasi
-- Canli paket ve flow izleme
-- Anomali tespiti
-- Risk skorlama
-- Nmap script ciktilarindan servis/CVE gorunurlugu
-- LLM destekli cihaz analizi
-- Offline akademik dogrulama ve benchmark ciktisi
+- Agda hangi cihazlar var?
+- Bu cihazlarda hangi servisler/acik portlar gorunuyor?
+- Nmap script ciktilarinda CVE ID baglami var mi?
+- Canli trafikte hangi flow'lar olusuyor?
+- Runtime anomaly modeli bu flow'lar icin anomali sinyali uretiyor mu?
+- Servis/CVE gorunurlugu ve anomali sinyali birlikte nasil risk skoruna donusuyor?
+- Akademik olarak model dogrulamasi hangi veri ve metriklerle yapildi?
+- LLM, cihaz ve CVE baglamini kullanarak analiste nasil yardimci olabilir?
 
-Proje, ozellikle bitirme projesi baglaminda "calisan sistem + olculebilir dogrulama" hedefiyle ilerletilmistir.
+Bu hedefler dogrultusunda proje hem calisan bir demo hem de olculebilir dogrulama ciktisi uretebilen bir bitirme projesi haline getirildi.
 
-## 3. Genel Mimari
+## 3. Kapsam Disi Alanlar
 
-| Katman | Teknoloji / Modul | Gorev |
-| --- | --- | --- |
-| Backend API | FastAPI | Dashboard ve servisler icin REST API |
-| Scanner | Nmap / python-nmap | Yerel ag ve servis kesfi |
-| Monitor | Scapy | Canli paket yakalama ve flow feature uretimi |
-| ML | scikit-learn | Runtime Isolation Forest ve offline benchmark modelleri |
-| Risk Engine | Python servis katmani | Servis/CVE gorunurlugu, port baglami ve anomali sinyallerini risk skoruna cevirme |
-| Database | SQLite + SQLAlchemy | Cihaz, risk gecmisi ve anomali loglari |
-| Dashboard | React + Vite | Operasyon, topoloji, metrik ve analiz arayuzu |
-| LLM Katmani | Provider API | Cihaz/CVE baglamli aciklama ve aksiyon onerisi |
-| Evaluation | Python scriptleri | Model, risk ve scanner dogrulama ciktisi |
+Asagidaki alanlar bilincli olarak kapsam disi veya gelecek calisma olarak tutuldu:
 
-## 4. Backend Yetkinlikleri
+- Production deployment
+- Auth/JWT/OAuth2 kullanici kimlik dogrulamasi
+- HTTPS/TLS terminasyonu
+- Paket engelleme veya otomatik aksiyon alma
+- Gercek saldiri trafigi uretme
+- N-BaIoT supervised modelini canli sisteme dogrudan baglama
+- Tum ag trafigini garanti ederek yakalama
+- CVSS skorunu her CVE icin kesin olarak cikarma
+- LLM yanitlarini karar verici mekanizma olarak kullanma
 
-Backend tarafinda yapilan ana isler:
+Bu sinirlar projenin eksigi olarak saklanmadi; README, raporlar ve acceptance dokumanlarinda acik sekilde yazildi.
 
-- FastAPI router yapisi moduler hale getirildi.
-- Scanner endpointleri `/scanner/*` altinda toplandi.
-- Monitor endpointleri `/monitor/*` altinda toplandi.
-- Eski endpoint isimleri temizlendi.
-- Startup yapisi FastAPI lifespan mekanizmasina tasindi.
-- Database modeli SQLAlchemy 2.0 uyumlu hale getirildi.
-- Runtime durum bilgileri daha kararli hale getirildi.
-- Job yapisi ile scanner/monitor islemlerinin durumu izlenebilir hale getirildi.
+## 4. Genel Mimari
 
-Onemli endpoint gruplari:
+Sentinel-IoT su katmanlardan olusur:
+
+| Katman | Klasor / Modul | Teknoloji | Gorev |
+| --- | --- | --- | --- |
+| Backend API | `sentinel_iot/api/` | FastAPI | Dashboard ve servisler icin REST API |
+| Scanner | `sentinel_iot/scanner/` | Nmap, python-nmap | Cihaz kesfi, servis taramasi, CVE ID gorunurlugu |
+| Monitor | `sentinel_iot/monitor/` | Scapy | Paket yakalama, flow olusturma, feature extraction |
+| ML Runtime | `sentinel_iot/ml/` | scikit-learn | 6 live feature ile Isolation Forest anomali sinyali |
+| Risk Engine | `sentinel_iot/core/risk_engine.py` | Python | Servis/CVE gorunurlugu + anomali sinyalinden risk skoru |
+| Database | `sentinel_iot/database/` | SQLite, SQLAlchemy | Cihaz, risk gecmisi, anomali loglari |
+| Services | `sentinel_iot/services/` | Python servis katmani | Scanner, monitor, LLM, ML ve job orchestration |
+| Dashboard | `sentinel_iot/dashboard/react_app/` | React, Vite | Envanter, topoloji, monitor, metrics, LLM UI |
+| Evaluation | `evaluation/` | Python scripts | N-BaIoT benchmark, risk/scanner/model dogrulama |
+| Docs | `docs/` | Markdown | Audit, acceptance, sunum ve final rapor metinleri |
+
+## 5. Klasor Yapisi ve Sorumluluklar
 
 ```text
-/devices
-/scanner/scans
-/scanner/status
-/scanner/jobs
-/monitor/packets
-/monitor/flows
-/monitor/history
-/monitor/topology
-/monitor/live/start
-/monitor/live/status
-/monitor/live/stop
-/metrics
+.
+|-- sentinel_iot/
+|   |-- api/                    # FastAPI app, routerlar, dependency injection
+|   |-- core/                   # Risk engine gibi cekirdek algoritmalar
+|   |-- database/               # SQLAlchemy modelleri ve SQLite yardimcilari
+|   |-- dashboard/react_app/    # React/Vite frontend
+|   |-- evaluation/             # LLM evaluation harness ve eski lokal evaluation kayitlari
+|   |-- ml/                     # Feature schema, anomaly model, dataset generator
+|   |-- monitor/                # Packet capture ve flow feature extraction
+|   |-- scanner/                # Nmap discovery, service scan, fingerprint enrichment
+|   |-- schemas/                # Pydantic response/request semalari
+|   |-- services/               # Scanner/monitor/ml/llm orchestration servisleri
+|   `-- tests/                  # Backend unit/integration testleri
+|-- evaluation/                 # Final ML/evaluation pipeline ve N-BaIoT scriptleri
+|-- docs/                       # Audit, acceptance, model validation ve sunum dokumanlari
+|-- setup.ps1                   # Windows kurulum otomasyonu
+|-- run_backend.ps1             # Backend calistirma
+|-- run_frontend.ps1            # Frontend calistirma
+|-- run_dev.ps1                 # Backend + frontend birlikte calistirma
+|-- verify_release.ps1          # Test/build dogrulama
+|-- package_release.ps1         # Release zip paketleme
+|-- README.md                   # GitHub ana dokuman
+`-- PROJE_DOKUMANTASYONU.md    # Bu detayli proje dokumani
 ```
 
-## 5. Scanner Yetkinlikleri
+## 6. Veri Akisi
 
-Scanner modulu Nmap tabanli calisir. Amaci yerel agdaki cihazlari bulmak ve servis gorunurlugu saglamaktir.
+### 6.1 Scanner Akisi
 
-Desteklenen kabiliyetler:
+1. Kullanici dashboard'dan hedef IP/CIDR ve scan profili secer.
+2. Frontend `/scanner/scans` endpointine istek atar.
+3. Backend bir scan job olusturur.
+4. ScannerService, Nmap host discovery calistirir.
+5. Bulunan cihazlar icin servis taramasi yapilir.
+6. Servis, port, banner, HTTP title/server header, TLS ve varsa `vulners` script ciktisi toplanir.
+7. CVE ID'leri Nmap script text ciktisindan regex ile cekilir.
+8. RiskEngine servis/CVE gorunurlugu ve varsa anomali sinyalini kullanarak risk skorunu hesaplar.
+9. Cihaz bilgileri SQLite veritabanina yazilir.
+10. Dashboard envanter, cihaz detaylari ve topoloji ekranlarini gunceller.
 
-- Hedef IP/CIDR araligi ile tarama baslatma
-- Tarama profili secme
-- Acik port ve servis bilgisi toplama
-- Vendor ve cihaz bilgisi kaydetme
-- Nmap script ciktilarindan CVE ID baglami varsa risk engine'e tasima
-- Dashboard topoloji ve envanter ekranlarini guncelleme
+### 6.2 Monitor Akisi
 
-Sinirlar:
-
-- Proje aktif saldiri araci degildir.
-- Taramalar Nmap'in izin verilen ve kontrollu aglarda calistirilmasi gereken servis kesif islemleridir.
-- Nmap scriptleri ve `vulners` ciktisi ortama baglidir; her servis icin CVE veya CVSS skoru garanti edilmez.
-- Gercek kurum aglarinda izinsiz kullanilmamalidir.
-
-## 6. Monitor ve Flow Analizi
-
-Monitor tarafi Scapy ile canli paketleri yakalar ve flow bazli feature uretir. Flow key kodda 5-tuple olarak tutulur:
+1. Kullanici live monitor baslatir.
+2. Backend `/monitor/live/start` ile monitor job olusturur.
+3. Scapy `sniff` belirli surelik capture pencereleri calistirir.
+4. Paketlerden flow key olusturulur.
+5. Flow key kodda 5-tuple seklindedir:
 
 ```text
 src_ip, dst_ip, src_port, dst_port, protocol
 ```
 
-Canli sistemde modele verilen 6 numeric feature sunlardir:
+6. Her flow icin 6 numeric live feature uretilir:
 
 ```text
 packet_count
@@ -104,96 +127,228 @@ mean_iat
 var_iat
 ```
 
-Bu feature'lar dashboard'da canli akislar, paket onizlemesi ve topoloji etkilesimi icin kullanilir. Runtime anomaly model de bu kisa sema uzerinden calisir.
+7. Runtime Isolation Forest modeli bu feature'lar uzerinden anomali sinyali uretir.
+8. Anomali sinyali RiskEngine'e aktarilir.
+9. Dashboard paket listesi, flow listesi, topoloji ve anomali ekranlarini gunceller.
 
-Sinirlar:
+### 6.3 LLM Analiz Akisi
 
-- Canli sistem N-BaIoT veri setindeki 115 feature'li semayi dogrudan uretmez.
-- Bu nedenle N-BaIoT supervised modeli canli path'e dogrudan baglanmamistir.
-- Packet capture islemi yonetici/root yetkisi gerektirebilir.
-- Sistem yalnizca calistigi network interface'in gorebildigi trafigi yakalar; switched network, Wi-Fi istemci izolasyonu veya SPAN/mirror olmayan ortamlarda tum ag trafigi gorulmeyebilir.
+1. Kullanici cihaz detayindan guvenlik asistani panelini acar.
+2. Frontend LLM endpointine cihaz IP'si ve istenen analiz bolumlerini gonderir.
+3. Backend cihaz, risk, servis, CVE ve anomali baglamini toplar.
+4. LLM provider ayari `.env` dosyasindan okunur.
+5. LLM yaniti cihaz riski, anomali ozeti ve sonraki aksiyon onerileri olarak UI'da gosterilir.
 
-## 7. ML ve Anomali Tespiti
+LLM yanitlari karar verici degildir; analiste yardimci aciklama olarak konumlandirilir.
 
-Projede iki farkli ML yaklasimi vardir.
+## 7. Backend API
 
-### 7.1 Runtime Anomali Modeli
+Onemli endpoint gruplari:
 
-Canli Sentinel-IoT sistemi Isolation Forest tabanli hafif bir runtime anomaly detection yapisi kullanir. Bu model `StandardScaler` ile normalize edilen 6 numeric live flow feature semasina gore calisir.
+| Endpoint | Amac |
+| --- | --- |
+| `GET /` | API durum ve versiyon ozeti |
+| `GET /health` | API, DB ve LLM konfigurasyon saglik ozeti |
+| `GET /devices` | Cihaz envanteri |
+| `GET /devices/{ip}` | Tek cihaz detayi |
+| `GET /devices/{ip}/history` | Risk gecmisi |
+| `GET /devices/{ip}/anomalies` | Anomali loglari |
+| `POST /scanner/scans` | Yeni scan job baslatma |
+| `GET /scanner/status` | Scanner runtime status |
+| `GET /scanner/jobs` | Son scan job ozeti |
+| `GET /scanner/jobs/{job_id}` | Job detaylari |
+| `GET /monitor/packets` | Son paket snapshot'i |
+| `GET /monitor/flows` | Son flow snapshot'i |
+| `GET /monitor/history` | Trafik gecmisi |
+| `GET /monitor/topology` | Topoloji nodes/links |
+| `POST /monitor/live/start` | Live monitor baslatma |
+| `GET /monitor/live/status` | Live monitor runtime status |
+| `POST /monitor/live/stop` | Live monitor durdurma |
+| `GET /metrics` | Runtime model metric status ve synthetic training metric ozeti |
+| `POST /train` | PCAP dosyasindan runtime model egitimi |
+| `GET /llm/status` | LLM konfigurasyon durumu |
+| `POST /llm/device-analysis` | Cihaz baglamli LLM analizi |
+| `POST /llm/cve-explanation` | CVE baglamli LLM aciklamasi |
 
-Amac:
+### /metrics Davranisi
 
-- Canli akislar icin anomali sinyali uretmek
-- Risk engine'e anomali bileseni saglamak
-- Dashboard'da izleme ve uyarilari gostermek
+`/metrics` endpointi canli sistem icin TP/FP/F1 gibi etiketli operasyon basari metrikleri uretmez. Bunun nedeni bu metriklerin etiketli canli olay gerektirmesidir.
 
-Kodda gercek zamanli incremental ogrenme akisi yoktur. Mevcut mekanizma, yeni ornekleri buffer'da biriktirip belirli esiklerde periodic batch retraining yapacak sekilde tasarlanmistir.
+Mevcut guvenli davranis:
 
-### 7.2 Offline N-BaIoT Benchmark
+```json
+{
+  "runtime_detection_metrics": null,
+  "runtime_metrics_metadata": {
+    "source": "not_available",
+    "is_placeholder": false,
+    "note": "Runtime TP/FP/F1 metrics require labelled production events and are not available in this prototype."
+  }
+}
+```
 
-N-BaIoT veri seti ile supervised benchmark pipeline kurulmustur. Bu benchmark canli sisteme dogrudan baglanan model degil, ML tarafinin etiketli IoT botnet verisi uzerinde offline olarak olculebilmesini saglayan akademik dogrulama calismasidir.
+Bu sayede statik demo degerler gercek operasyon basarisi gibi sunulmaz.
 
-Calistirilan modeller:
+### /health Davranisi
 
-- Random Forest
-- Extra Trees
-- HistGradientBoosting
-- Device Split Random Forest
-- Attack Split Random Forest
-- Device + Attack Split Random Forest
-- Isolation Forest contamination tuning
+`/health` endpointi local SQLite absolute path dondurmez. Yalnizca ozet durum dondurur:
 
-N-BaIoT processed dataset ozeti:
+```json
+{
+  "database": {
+    "database_status": "connected",
+    "database_type": "sqlite",
+    "path_exposed": false
+  }
+}
+```
 
-| Deger | Sonuc |
-| --- | ---: |
-| Toplam satir | 1,772,641 |
-| Feature sayisi | 115 |
-| Normal kayit | 172,641 |
-| Anomaly kayit | 1,600,000 |
+## 8. Scanner Tasarimi
 
-Model dogrulama ozeti:
+Scanner tarafinda iki ana dosya vardir:
+
+- `sentinel_iot/scanner/network_scan.py`
+- `sentinel_iot/scanner/vulnerability_scan.py`
+
+Host discovery Nmap ile yapilir. Varsayilan local network tespiti local IP'nin son oktetini `.0/24` yapar; farkli subnetler icin kullanici hedef aralik girebilir.
+
+Servis taramasinda Nmap profilleri kullanilir. Vulnerability profili su scriptleri calistirabilir:
+
+```text
+banner,http-title,http-headers,ssl-cert,vulners
+```
+
+CVE gorunurlugu Nmap script ciktisina baglidir. Kod CVE ID'lerini regex ile yakalar; her CVE icin CVSS skoru garanti edilmez. RiskEngine dict formatli CVE item'larinda CVSS benzeri alan varsa kullanir, yoksa o path icin fallback uygulayabilir. Scanner string CVE listesi ile CVSS fallback ayrimi dokumante edilmis ve gelecek test konusu olarak birakilmistir.
+
+## 9. Device Fingerprinting
+
+Device fingerprinting zenginlestirme amaciyla kullanilir. Kaynaklar:
+
+- Nmap vendor/hostname
+- MAC OUI lookup
+- SSDP response bilgisi
+- HTTP title
+- HTTP Server header
+- Servis banner bilgisi
+
+Bu mekanizma heuristic zenginlestirme saglar; kesin vendor/model tespiti garantisi vermez.
+
+## 10. Monitor ve Feature Extraction
+
+Canli sistemin model girdisi 6 numeric feature ile sinirlidir:
+
+| Feature | Aciklama |
+| --- | --- |
+| `packet_count` | Flow icindeki paket sayisi |
+| `byte_count` | Flow icindeki toplam byte |
+| `duration` | Flow suresi |
+| `avg_packet_size` | Ortalama paket boyutu |
+| `mean_iat` | Paketler arasi ortalama zaman |
+| `var_iat` | Paketler arasi zaman varyansi |
+
+UI icin IP, port, protocol ve flow id gibi metadata da tasinir; bunlar model feature'i degildir.
+
+Packet capture sinirlari:
+
+- Admin/root yetkisi gerekebilir.
+- Sadece calisan interface'in gorebildigi trafik yakalanir.
+- Switched network, Wi-Fi client isolation veya SPAN/mirror olmayan ortamlarda tum ag trafigi gorulmeyebilir.
+- Capture bos donebilir; bu durumda sistem crash etmemeli, bos state ile devam etmelidir.
+
+## 11. Runtime ML Modeli
+
+Runtime model `sentinel_iot/ml/anomaly_model.py` icinde bulunur.
+
+Teknik ozellikler:
+
+- Model: `IsolationForest`
+- Normalizasyon: `StandardScaler`
+- Feature schema: `sentinel_iot/ml/feature_schema.py`
+- Feature sayisi: 6 live numeric feature
+- NaN/inf temizligi: training ve inference tarafinda ele alinir
+- Model artefact yoksa crash yerine normal/0 skor davranisi vardir
+- Anomaly score 0-1 araligina clamp edilir
+
+Runtime modelin amaci canli flow icin anomali sinyali uretmektir. Bu model, N-BaIoT supervised benchmark modeliyle ayni sey degildir.
+
+## 12. N-BaIoT Offline Benchmark
+
+N-BaIoT, Sentinel-IoT'un canli veri kaynagi degildir. Offline benchmark ve akademik dogrulama icin kullanilan etiketli IoT botnet veri setidir.
+
+N-BaIoT pipeline dosyalari `evaluation/` altindadir:
+
+| Script | Gorev |
+| --- | --- |
+| `inspect_nbaiot.py` | Raw CSV dosyalarini inceler |
+| `preprocess_nbaiot.py` | Binary processed dataset uretir |
+| `train_nbaiot_model.py` | Random Forest, Extra Trees, HistGradientBoosting egitir |
+| `train_nbaiot_device_split.py` | Cihaz bazli split testi |
+| `train_nbaiot_attack_split.py` | Saldiri ailesi split testi |
+| `train_nbaiot_device_attack_split.py` | Cihaz + saldiri ailesi split testi |
+| `train_nbaiot_balanced.py` | Dengeli benchmark |
+| `analyze_nbaiot_feature_leakage.py` | Feature leakage / tek feature analizi |
+| `tune_nbaiot_isolation_forest.py` | Isolation Forest contamination tuning |
+| `compare_nbaiot_models.py` | Model karsilastirma tablosu ve grafikleri |
+
+### Bilinen Sonuclar
 
 | Deney | F1-score | Yorum |
 | --- | ---: | --- |
 | Random Forest random split | 0.999994 | Model kapasitesini gosterir; tek basina genelleme kaniti degildir. |
 | Balanced RF | 0.999913 | Sinif dengesi azaltildiginda ayrimin korundugunu gosterir. |
-| Device Split RF | 0.999206 | Farkli cihaz ayriminda yuksek performans gosterir; saldiri ailesi genellemesini tek basina olcmez. |
-| Attack Split RF average | 0.803536 | Gormedigi saldiri ailesinde daha gercekci performans sinirini gosterir. |
-| Device + Attack Split RF average | 0.806298 | Hem cihaz hem saldiri ailesi ayrildiginda genelleme sinirini gosterir. |
-| Isolation Forest best | 0.991886 | Unsupervised baseline icin destekleyici sonuc; FPR 0.149999 olarak yorumlanmalidir. |
+| Device Split RF | 0.999206 | Cihaz ayrimi testidir; saldiri ailesi genellemesini tek basina olcmez. |
+| Attack Split RF average | 0.803536 | Gormedigi saldiri ailesinde daha gercekci siniri gosterir. |
+| Device + Attack Split RF average | 0.806298 | Daha zor genelleme testidir. |
+| Isolation Forest best | 0.991886 | Unsupervised baseline; FPR 0.149999 ile birlikte yorumlanmalidir. |
 
-Random split sonuclari cok yuksek oldugu icin tek basina canli sistem basarisi olarak sunulmamalidir. Final raporda Random Split model kapasitesi, Device Split cihaz genellemesi, Attack Split ve Device + Attack Split ise yeni saldiri ailesine genelleme siniri olarak anlatilmalidir.
+Leakage supheli feature:
 
-## 8. Risk Engine
+```text
+HH_jit_L0.01_mean
+single-feature F1: 0.958079
+```
 
-Risk engine, servis/CVE gorunurlugu ve anomali sinyallerini tek bir risk skoruna cevirir. Basit dogrulama senaryolarinda base risk formulu sudur:
+Bu feature'in tek basina yuksek sonuc vermesi, dataset'e ozgu guclu sinyal riskini gosterir. Feature silinmedi; analiz ve rapor bulgusu olarak tutuldu.
+
+### 115 Feature vs 6 Live Feature Ayrimi
+
+N-BaIoT benchmark 115 numeric feature kullanir. Canli Sentinel-IoT runtime sistemi ise 6 numeric live feature uretir. Bu nedenle N-BaIoT modeli canli sisteme dogrudan entegre edilmedi.
+
+Canli entegrasyon icin iki teknik yol vardir:
+
+1. N-BaIoT benzeri 115 feature ureten live extractor gelistirmek.
+2. Mevcut 6 live feature ile ayri etiketli veri toplayip supervised model egitmek.
+
+## 13. Risk Engine
+
+RiskEngine `sentinel_iot/core/risk_engine.py` icindedir.
+
+Temel sozlesme:
+
+- CVSS-like vulnerability input 0-10 araligindadir.
+- Anomaly score 0-1 araligindadir.
+- Final risk 0-100 araligina clamp edilir.
+- Sonuc status alanina donusturulur: Safe, Medium Risk, High Risk, Critical Risk.
+
+Basit base formul:
 
 ```text
 risk_base = vulnerability * 0.6 + anomaly * 0.4
 ```
 
-Kodda final skor yalnizca bu iki agirliktan olusmaz. Acik port sayisi, kritik port modifier'lari, asset type multiplier, anomaly confidence ve varsa CVE/CVSS baglami da dikkate alinir:
+Kodda ek baglamsal etkiler de vardir:
 
-```text
-final_risk = min(100, risk_base * asset_multiplier)
-```
+- Kritik port modifier'lari
+- Asset type multiplier
+- Anomaly confidence
+- CVE/CVSS baglami
+- Acik port sayisi
 
-Risk engine test senaryolari:
+Risk engine testleri `sentinel_iot/tests/test_risk_engine.py` ve `evaluation/validate_risk_engine.py` ile desteklenir.
 
-| Senaryo | Vulnerability | Anomaly | Beklenen | Sonuc |
-| --- | ---: | ---: | ---: | --- |
-| Temiz cihaz | 0 | 0 | 0 | Passed |
-| Sadece zafiyet | 80 | 0 | 48 | Passed |
-| Sadece anomali | 0 | 90 | 36 | Passed |
-| Iki sinyal de yuksek | 90 | 90 | 90 | Passed |
-| Dengeli orta seviye | 50 | 50 | 50 | Passed |
+## 14. Dashboard
 
-Bu dogrulama `evaluation/results/risk_engine_validation.json` dosyasinda tutulur.
-
-## 9. Dashboard Yetkinlikleri
-
-React dashboard su ana ekranlari sunar:
+React dashboard kullaniciya su ekranlari sunar:
 
 - Envanter
 - Servis gorunurlugu
@@ -205,98 +360,87 @@ React dashboard su ana ekranlari sunar:
 - Cihaz detaylari
 - Guvenlik asistani
 
-Yapilan UI/UX gelistirmeleri:
+Onemli UI kararlar:
 
-- Topoloji ekrani daha okunabilir ve operasyon odakli hale getirildi.
-- Tarama hedefi ve profil secimi eklendi.
-- Yenileme sureleri daha kontrollu hale getirildi.
-- Console log kalintilari temizlendi.
-- Eski endpoint kullanimlari kaldirildi.
-- Dogrulama ve Ozet sayfasina offline akademik benchmark paneli eklendi.
+- Topoloji ekrani veri yokken empty state gosterir.
+- Scan loading/error state vardir.
+- Device detail secili cihaz yokken acilmaz.
+- N-BaIoT offline benchmark metrikleri runtime metrics ile karistirilmaz.
+- Runtime TP/FP/F1 metrikleri mevcut degilse `Runtime Metrics Status` empty state gosterilir.
 
-Dogrumlama ve Ozet sayfasinda gosterilen akademik dogrulama ciktisi:
+## 15. LLM Katmani
 
-- N-BaIoT offline benchmark metrikleri
-- Device split sonucu
-- Attack split ve device + attack split genelleme sonuclari
-- Isolation Forest baseline sonucu
-- Model comparison grafigi
-- Random Forest confusion matrix
-- Random split skorunun neden yuksek cikabilecegine dair yorum
-
-Bu metrikler canli Sentinel-IoT runtime basarisi olarak degil, offline benchmark ve model dogrulama ciktisi olarak yorumlanmalidir.
-
-## 10. LLM Destekli Analiz
-
-Projede LLM katmani cihaz ve CVE baglami icin aciklama uretmek amaciyla kullanilir.
-
-Yetkinlikler:
-
-- Secilen cihazin risk skorunu aciklama
-- Risk bilesenlerini yorumlama
-- Anomali gecmisini ozetleme
-- Sonraki aksiyon onerileri uretme
-- Kayitli CVE baglami varsa daha anlasilir teknik aciklama sunma
-
-Guvenlik ve pratiklik acisindan API key `.env` dosyasindan okunur. `.env` Git'e eklenmez.
-
-## 11. Evaluation ve Dogrulama Altyapisi
-
-Proje icin ayri bir `evaluation/` klasoru kurulmustur.
-
-Baslica scriptler:
-
-| Script | Gorev |
-| --- | --- |
-| `validate_anomaly_model.py` | Sentinel flow validation dataset ile Isolation Forest dogrulama |
-| `validate_risk_engine.py` | Risk engine formul senaryolarini dogrulama |
-| `inspect_nbaiot.py` | N-BaIoT raw CSV dosyalarini inceleme |
-| `preprocess_nbaiot.py` | N-BaIoT CSV dosyalarini binary benchmark datasetine cevirme |
-| `train_nbaiot_model.py` | Supervised model egitimi |
-| `train_nbaiot_device_split.py` | Cihaz bazli train/test ayrimi |
-| `train_nbaiot_attack_split.py` | Saldiri ailesi bazli genelleme testi |
-| `train_nbaiot_device_attack_split.py` | Cihaz + saldiri ailesi bazli genelleme testi |
-| `train_nbaiot_balanced.py` | Dengeli sinif dagilimi ile benchmark |
-| `analyze_nbaiot_feature_leakage.py` | Feature leakage / tek feature ayrim analizi |
-| `tune_nbaiot_isolation_forest.py` | Isolation Forest contamination tuning |
-| `compare_nbaiot_models.py` | Model karsilastirma tablosu ve grafigi |
-| `collect_live_flows.py` | Canli monitor flow snapshot toplama |
-| `prepare_live_validation_dataset.py` | Canli flow snapshotlarini validation formatina cevirme |
-| `shadow_predict_nbaiot_live.py` | N-BaIoT modeli ile canli feature semasi uyumlulugunu kontrol etme |
-
-Canli sistem ile N-BaIoT arasindaki fark bilincli olarak dokumante edilmistir. N-BaIoT offline benchmark, canli Sentinel-IoT ise runtime entegrasyon demosudur.
-
-## 12. Test Durumu
-
-Backend ve frontend dogrulama komutu:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\verify_release.ps1
-```
-
-Son dogrulama sonucu:
+LLM katmani opsiyoneldir. `.env` dosyasi ile ayarlanir:
 
 ```text
-Backend: 66 passed, 3 skipped
-Frontend lint: passed
-Frontend production build: passed
+SENTINEL_LLM_PROVIDER=
+SENTINEL_LLM_API_KEY=
+SENTINEL_LLM_MODEL=
+SENTINEL_LLM_TIMEOUT_SECONDS=20
 ```
 
-Vite build sirasinda sadece bundle boyutu uyarisi verir. Bu build hatasi degildir.
+Gercek API key repoya eklenmez. `.env.example` sadece placeholder icerir.
 
-## 13. Paketleme ve Calistirma
+LLM analizleri:
 
-Kurulum:
+- Cihaz riskini aciklar
+- Risk bilesenlerini yorumlar
+- Varsa CVE baglamini kullanir
+- Sonraki aksiyon onerileri uretir
+- Eksik veri varsa warning ile belirtir
+
+## 16. Evaluation ve Dogrulama Ciktilari
+
+Evaluation klasoru iki ana amaca hizmet eder:
+
+1. Sentinel-IoT runtime model/risk/scanner dogrulama altyapisi.
+2. N-BaIoT offline benchmark pipeline.
+
+Uretilen buyuk dataset/model/result dosyalari Git'e eklenmez. Kucuk sunum gorselleri ve ozet tablolar `docs/evaluation_results/` altinda tutulabilir.
+
+Onemli dokumanlar:
+
+| Dosya | Amac |
+| --- | --- |
+| `docs/model_validation_summary.md` | Model dogrulama ve genelleme analizi |
+| `docs/slides_model_validation_text.md` | Slayta uygun kisa metinler |
+| `docs/final_acceptance_test_report.md` | Final QA/acceptance raporu |
+| `docs/demo_readiness_checklist.md` | Demo gunu kontrol listesi |
+| `docs/remaining_risks_before_defense.md` | Savunma oncesi kalan riskler |
+| `docs/final_project_technical_audit.md` | Teknik audit karari |
+| `docs/algoritma_raporu.md` | Kodla uyumlu algoritma raporu |
+
+## 17. Kurulum
+
+Onerilen kurulum:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-Tek komutla gelistirme ortami:
+Manuel backend kurulumu:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run_dev.ps1
+cd sentinel_iot
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
 ```
+
+Manuel frontend kurulumu:
+
+```powershell
+cd sentinel_iot\dashboard\react_app
+npm install
+```
+
+Nmap sistemde kurulu ve PATH'te olmalidir:
+
+```powershell
+nmap --version
+```
+
+## 18. Calistirma
 
 Backend:
 
@@ -310,90 +454,132 @@ Frontend:
 powershell -ExecutionPolicy Bypass -File .\run_frontend.ps1
 ```
 
-Paketleme:
+Backend + frontend birlikte:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_dev.ps1
+```
+
+Adresler:
+
+```text
+API:       http://127.0.0.1:8000
+API Docs:  http://127.0.0.1:8000/docs
+Frontend:  http://127.0.0.1:5173
+```
+
+## 19. Test ve Build
+
+Backend testleri:
+
+```powershell
+.\sentinel_iot\.venv\Scripts\python.exe -m pytest --basetemp=.pytest_tmp
+```
+
+Evaluation compile:
+
+```powershell
+.\sentinel_iot\.venv\Scripts\python.exe -m compileall -q evaluation
+```
+
+Frontend build:
+
+```powershell
+cd sentinel_iot\dashboard\react_app
+npm run build
+```
+
+Son dogrulama sonucu:
+
+```text
+Backend: 66 passed, 3 skipped
+Frontend build: passed
+Evaluation compile: passed
+```
+
+Vite build chunk size warning verebilir. Bu teslimi engelleyen hata degildir; gelecek calismada code splitting ile iyilestirilebilir.
+
+## 20. Paketleme ve GitHub Hazirligi
+
+Release paketi:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\package_release.ps1
 ```
 
-Paket ciktisi:
+Git'e eklenmemesi gerekenler:
+
+- `.env`
+- `.venv`
+- `node_modules`
+- `*.db`
+- `*.pcap`
+- `evaluation/datasets/raw/`
+- `evaluation/datasets/processed/`
+- `evaluation/models/`
+- `evaluation/results/`
+- `*.pkl`, `*.joblib`
+
+Bu kurallar `.gitignore` icinde tanimlidir.
+
+## 21. Guclu Taraflar
+
+- Uctan uca FastAPI + React mimarisi calisiyor.
+- Scanner, monitor, risk engine, ML runtime, dashboard ve LLM katmani ayni projede birlesti.
+- Nmap ve Scapy gibi gercek araclarla calisan ag gorunurlugu var.
+- Runtime feature schema merkezi tanimlandi.
+- Risk engine testlerle dogrulandi.
+- N-BaIoT benchmark random split ile sinirli kalmadi; device split, attack split, device+attack split ve leakage analizi eklendi.
+- Acceptance test raporlari ve demo checklist hazirlandi.
+- Repo temizligi yapildi; dataset/model/secret dosyalari Git'e alinmiyor.
+
+## 22. Bilinen Sinirlar
+
+- Canli runtime TP/FP/F1 metrikleri yoktur; etiketli canli olay gerektirir.
+- Runtime model 6 live feature kullanir; N-BaIoT supervised model 115 feature kullanir.
+- N-BaIoT modeli canli sisteme dogrudan bagli degildir.
+- Packet capture tum agi garanti etmez.
+- Nmap ve packet capture yetki gerektirebilir.
+- CVE/CVSS ciktilari Nmap scriptlerine baglidir.
+- Auth/JWT/OAuth2 yoktur.
+- Production deployment yapilmamistir.
+- LLM yanitlari analist yardimcisidir, otomatik karar mekanizmasi degildir.
+
+## 23. Final Savunma Icin Anlatim
+
+Kisa savunma metni:
+
+> Sentinel-IoT, yerel agdaki IoT cihazlarini kesfeden, servis gorunurlugu saglayan, canli flow metrikleri ureten ve bu sinyalleri risk skoru ile birlestiren akademik bir guvenlik gorunurlugu prototipidir. Canli sistem 6 numeric flow feature ile runtime Isolation Forest anomali sinyali uretir. N-BaIoT ise canli sisteme dogrudan bagli olmayan, etiketli IoT botnet verisi uzerinde yapilmis offline ML benchmark calismasidir. Random split sonuclari model kapasitesini, attack split ve device+attack split sonuclari ise genelleme sinirlarini gostermek icin kullanilmistir.
+
+Mutlaka soylenmesi gereken ayrim:
 
 ```text
-release/SentinelIoT-release.zip
+Canli sistem basarisi != N-BaIoT offline benchmark basarisi
 ```
 
-Raw dataset, processed dataset, `.env`, `.venv`, `node_modules`, build ciktisi ve lokal veritabani pakete dahil edilmez.
+## 24. Gelecek Calismalar
 
-## 14. Guclu Noktalar
+1. Canli sistem icin etiketli veri toplama ve runtime TP/FP/F1 hesaplama.
+2. Mevcut 6 live feature ile supervised model egitimi.
+3. N-BaIoT benzeri 115 feature live extractor gelistirme.
+4. Scanner CVE semasini CVSS bilgisiyle daha net normalize etme.
+5. JWT/OAuth2, HTTPS ve deployment altyapisi.
+6. Docker tabanli calistirma.
+7. SIEM entegrasyonu.
+8. Daha genis gercek ag testleri.
+9. LLM groundedness/hallucination evaluation kapsamını genisletme.
+10. Frontend code splitting ve performans iyilestirme.
 
-Projenin guclu yonleri:
+## 25. Son Durum
 
-- Uctan uca calisan FastAPI + React mimarisi
-- Nmap tabanli cihaz ve servis gorunurlugu
-- Canli paket/flow izleme
-- Risk engine ile servis/CVE gorunurlugu ve anomali sinyallerini birlestirme
-- LLM destekli cihaz analizi
-- Offline akademik benchmark ve metrik uretimi
-- N-BaIoT gibi etiketli IoT botnet veri setiyle supervised model karsilastirmasi
-- Device split, attack split ve device + attack split ile genelleme analizi
-- Sunuma hazir confusion matrix, model comparison ve feature importance ciktisi
-- Windows ortaminda calistirma scriptleri
-- `.env.example`, kurulum, dogrulama ve paketleme otomasyonu
-
-## 15. Sinirlar ve Bilincli Tasarim Kararlari
-
-Projenin sinirlari:
-
-- Sistem bir IDS/IPS urunu degil, arastirma ve prototip seviyesinde bir guvenlik gorunurlugu sistemidir.
-- Gercek saldiri uretmez.
-- N-BaIoT modeli canli sisteme dogrudan baglanmamistir; feature semalari farklidir.
-- N-BaIoT benchmark 115 numeric feature kullanir; canli anomaly modeli 6 numeric live flow feature semasiyla calisir.
-- Nmap taramalari kontrollu ve izinli aglarda calistirilmalidir.
-- Packet capture islemi yetki gerektirebilir ve sadece interface'in gorebildigi trafigi yakalar.
-- CVE/CVSS gorunurlugu Nmap script ciktilarina baglidir; her sonuc icin garanti degildir.
-- Auth/JWT/OAuth2 ve production deployment bu asamada kapsam disidir.
-- LLM ciktisi karar verici degil, analist yardimcisi olarak konumlandirilmistir.
-- Dataset ve model artifact dosyalari buyuk oldugu icin Git/release paketine dahil edilmemelidir.
-
-Bu sinirlar hata degil, projenin akademik olarak dogru konumlandirilmasi icin bilincli ayrimlardir.
-
-## 16. Hocalara Sunumda Nasil Anlatilmali?
-
-Kisa anlatim:
-
-> Sentinel-IoT, yerel agdaki IoT cihazlarini kesfeden, servis gorunurlugu saglayan, canli trafik akisini izleyen, anomali sinyallerini risk skoru ile birlestiren ve LLM destekli analiz sunan bir guvenlik gorunurlugu prototipidir. Proje sadece calisan bir dashboard olarak birakilmamis, risk engine testleri, canli flow toplama altyapisi ve N-BaIoT etiketli veri seti uzerinde offline ML benchmark ile olculebilir hale getirilmistir.
-
-Vurgulanmasi gereken teknik ayrim:
-
-> Canli sistem runtime monitoring demosudur. N-BaIoT benchmark ise model kapasitesini etiketli IoT botnet verisiyle gosteren offline dogrulama calismasidir. Bu iki katman bilincli olarak ayrilmistir cunku feature semalari farklidir: canli sistem 6 numeric live feature, N-BaIoT benchmark ise 115 numeric feature kullanir.
-
-One cikarilacak sonuc:
-
-> Random split modelleri cok yuksek F1-score vermektedir; ancak bu sonuclar tek basina genelleme kaniti degildir. Final savunmada Random Split model kapasitesi, Device Split cihaz genellemesi, Attack Split ve Device + Attack Split ise yeni saldiri ailesine genelleme siniri olarak anlatilmalidir.
-
-## 17. Bundan Sonraki Gelistirme Adimlari
-
-Bir sonraki teknik adimlar:
-
-1. Canli sistem icin daha zengin feature extractor gelistirmek.
-2. Canli flow semasi ile supervised model egitmek.
-3. N-BaIoT benzeri 115 feature ureten extractor yazmak veya mevcut canli semaya uygun etiketli veri seti olusturmak.
-4. Dashboard'da evaluation sonuclarini JSON'dan dinamik okuyan endpoint eklemek.
-5. Daha fazla dataset ile karsilastirma yapmak: CICIoT2023, TON_IoT, BoT-IoT.
-6. Model drift ve periodic batch retraining stratejisini gelistirmek.
-7. LLM yanitlari icin daha kapsamli hallucination/groundedness evaluation yapmak.
-8. Auth/JWT/OAuth2, HTTPS ve Docker tabanli deployment eklemek.
-
-## 18. Son Durum Ozeti
-
-Sentinel-IoT su anda:
+Sentinel-IoT final savunma icin su durumda:
 
 - Calistirilabilir
 - Test edilebilir
 - Paketlenebilir
-- Offline benchmark ile akademik olarak degerlendirilebilir
-- Sunumda metrik ve grafiklerle savunulabilir
+- Dokumante edilmis
+- Audit ve acceptance raporlari hazir
+- Offline benchmark sonuclari sunuma hazir
+- Sinirlilikleri acikca belirtilmis
 
-durumdadir.
-
-Projenin temel degeri; canli ag gorunurlugu, risk skorlama, LLM destekli analiz ve N-BaIoT offline benchmark ciktisini tek bir bitirme projesi kapsaminda birlestirmesidir.
+Aktif acceptance FAIL kalmamistir. Kalan noktalar warning veya gelecek calisma niteligindedir.

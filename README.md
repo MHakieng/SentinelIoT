@@ -4,6 +4,12 @@ Sentinel-IoT; IoT aglari icin cihaz kesfi, servis/zafiyet gorunurlugu, pasif tra
 
 N-BaIoT veri seti bu projede canli sistemin veri kaynagi olarak degil, offline model dogrulama ve benchmark amaciyla kullanilmistir.
 
+Detayli mimari, veri akisi, endpointler, model dogrulama yaklasimi, demo hazirligi ve bilinen sinirlar icin ana teknik referans:
+
+```text
+PROJE_DOKUMANTASYONU.md
+```
+
 ## Temel Ozellikler
 
 - Network scan ve cihaz envanteri
