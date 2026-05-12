@@ -30,3 +30,12 @@ def get_device_history(ip: str, service: RiskService = Depends(get_risk_service)
 def get_device_anomalies(ip: str, service: RiskService = Depends(get_risk_service)):
     """Retrieve historical anomaly logs for a specific device from DB."""
     return service.get_anomalies(ip)
+
+
+@router.get("/{ip}/risk")
+def get_device_risk(ip: str, service: RiskService = Depends(get_risk_service)):
+    """Compute and return contextual risk for a device (v6 contextual risk engine)."""
+    device = get_device_by_ip(ip)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return service.calculate_risk(ip)

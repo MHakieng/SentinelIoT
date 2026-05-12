@@ -8,6 +8,8 @@ class RuntimeSummary(BaseModel):
     failed_devices: int = 0
     packets_captured: int = 0
     flows_tracked: int = 0
+    total_flows_seen: int = 0
+    flow_buffer_limit: int = 500
     history_points: int = 0
     last_interval_packets: int = 0
 

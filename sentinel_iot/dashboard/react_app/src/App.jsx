@@ -20,6 +20,7 @@ import CommandCenterView from './components/command/CommandCenterView'
 import InventoryView from './components/InventoryView'
 import VulnerabilityView from './components/VulnerabilityView'
 import AnomalyView from './components/AnomalyView'
+import FlowSummaryView from './components/FlowSummaryView'
 import DeviceDetailView from './components/DeviceDetailView'
 import TopologyView from './components/TopologyView'
 import SecurityAssistantPanel from './components/SecurityAssistantPanel'
@@ -132,6 +133,7 @@ const App = () => {
 
   const [monitorStatus, setMonitorStatus] = useState('idle')
   const [monitorMessage, setMonitorMessage] = useState(null)
+  const [monitorSummary, setMonitorSummary] = useState(null)
   const [monitorActionLoading, setMonitorActionLoading] = useState(false)
   const [monitorError, setMonitorError] = useState(null)
 
@@ -284,6 +286,7 @@ const App = () => {
     const status = runtime?.status || 'idle'
     setMonitorStatus(status)
     setMonitorMessage(runtime?.message || null)
+    setMonitorSummary(runtime?.summary || null)
       setMonitorError(status === 'failed' ? runtime?.error || runtime?.message || 'Canlı izleme başarısız oldu.' : null)
   }
 
@@ -621,6 +624,7 @@ const App = () => {
       scanError={scanError}
       monitorStatus={monitorStatus}
       monitoringActive={monitoringActive}
+      monitorSummary={monitorSummary}
       monitorActionLoading={monitorActionLoading}
       monitorError={monitorError}
       selectedDevice={selectedDevice}
@@ -653,24 +657,28 @@ const App = () => {
         return <VulnerabilityView devices={devices} />
       case 'live':
         return (
-          <AnomalyView
-            devices={devices}
-            metrics={systemMetrics}
-            metricsLoading={metricsLoading}
-            metricsError={metricsError}
-            livePackets={livePackets}
-            trafficLoading={trafficLoading}
-            trafficError={trafficError}
-            trafficHistory={trafficHistory}
-            historyLoading={historyLoading}
-            historyError={historyError}
-            monitoringActive={monitoringActive}
-            monitorStatus={monitorStatus}
-            monitorMessage={monitorMessage}
-            monitorActionLoading={monitorActionLoading}
-            monitorError={monitorError}
-            onToggleMonitoring={toggleMonitoring}
-          />
+          <div style={{ display: 'grid', gap: '24px' }}>
+            <AnomalyView
+              devices={devices}
+              metrics={systemMetrics}
+              metricsLoading={metricsLoading}
+              metricsError={metricsError}
+              livePackets={livePackets}
+              trafficLoading={trafficLoading}
+              trafficError={trafficError}
+              trafficHistory={trafficHistory}
+              historyLoading={historyLoading}
+              historyError={historyError}
+              monitoringActive={monitoringActive}
+              monitorStatus={monitorStatus}
+              monitorMessage={monitorMessage}
+              monitorSummary={monitorSummary}
+              monitorActionLoading={monitorActionLoading}
+              monitorError={monitorError}
+              onToggleMonitoring={toggleMonitoring}
+            />
+            <FlowSummaryView flows={liveFlows} loading={trafficLoading} error={trafficError} />
+          </div>
         )
       case 'topology':
         return (
@@ -702,9 +710,6 @@ const App = () => {
             <div className="section-header">
               <div>
                 <h3 style={{ margin: 0 }}>Ayarlar</h3>
-                <div className="section-subtitle" style={{ marginTop: '6px' }}>
-                  Backend sözleşmesi değiştirilmeden okunabilir çalışma durumu ve yapılandırma notları.
-                </div>
               </div>
             </div>
             <div className="settings-grid">
@@ -737,7 +742,6 @@ const App = () => {
           </div>
           <div>
             <h2 className="sidebar-brand-title">Sentinel<span style={{ color: 'var(--accent-primary)' }}>IoT</span></h2>
-            <div className="sidebar-brand-copy">Yerel ağ görünürlüğü ve izleme</div>
           </div>
         </div>
 
@@ -749,7 +753,6 @@ const App = () => {
               {scanStateMeta[scanState].label}
             </div>
           </div>
-          <div className="status-copy">{scanStateMeta[scanState].copy}</div>
           {scanLoading && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
@@ -820,13 +823,6 @@ const App = () => {
                 </span>
               )}
             </h1>
-            <p className="page-copy">
-              {selectedDevice
-                ? 'Bu cihaz için risk geçmişini, izleme olaylarını, açık servisleri ve cihaza özel YZ yönlendirmesini inceleyin.'
-                : activeTab === 'command'
-                  ? 'Topoloji, öncelik kuyruğu, canlı akışlar ve cihaz istihbaratını tek operasyon kokpitinde izleyin.'
-                  : 'Cihaz envanterini, izleme etkinliğini, servis görünürlüğünü ve cihaza özel güvenlik yönlendirmesini tek yerden izleyin.'}
-            </p>
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
@@ -839,9 +835,6 @@ const App = () => {
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Güvenlik Asistanı</div>
                 <div style={{ fontWeight: '700' }}>{selectedDevice ? 'Hızlı cihaz görünümü' : 'Bir cihaz seçin'}</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  {selectedDevice ? selectedDevice.ip : 'Yalnızca cihaz bağlamında kullanılabilir'}
-                </div>
               </div>
             </button>
             <div className="card summary-tile">

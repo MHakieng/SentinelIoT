@@ -1,8 +1,10 @@
 # Sentinel-IoT
 
-Sentinel-IoT; IoT aglari icin cihaz kesfi, servis/zafiyet gorunurlugu, pasif trafik analizi, ML tabanli anomali sinyali, risk skorlama ve React dashboard sunan akademik bir full-stack guvenlik prototipidir.
+SentinelIoT v6; IoT aglarinda cihaz kesfi, servis/CVE gorunurlugu, davranissal anomali sinyali ve aciklanabilir risk analizini birlestiren **Command Center tabanli** bir guvenlik operasyon prototipidir.
 
-N-BaIoT veri seti bu projede canli sistemin veri kaynagi olarak degil, offline model dogrulama ve benchmark amaciyla kullanilmistir.
+Proje bir production IDS/IPS urunu degildir; paket engelleme/otomatik aksiyon alma, sertifikali koruma veya tum ag trafigini garanti etme iddiasi yoktur. Amaç, **görünürlük + kanıt + analist iş akışı** uzerinden savunulabilir bir akademik demo sunmaktir.
+
+N-BaIoT veri seti bu projede **canli sistemin veri kaynagi olarak degil**, yalnizca **offline model dogrulama/benchmark** amaciyla kullanilmistir.
 
 Detayli mimari, veri akisi, endpointler, model dogrulama yaklasimi, demo hazirligi ve bilinen sinirlar icin ana teknik referans:
 
@@ -12,16 +14,20 @@ PROJE_DOKUMANTASYONU.md
 
 ## Temel Ozellikler
 
-- Network scan ve cihaz envanteri
-- Device fingerprinting
-- Nmap script ciktilarindan CVE gorunurlugu
-- Passive traffic monitoring
-- Flow-based feature extraction
-- Isolation Forest anomali sinyali
-- Servis/CVE gorunurlugu + anomaly agirlikli hybrid risk scoring
-- React/Vite dashboard
-- Interaktif ag topolojisi
-- N-BaIoT offline evaluation benchmark
+- Network scan ve kalici cihaz envanteri
+- Device fingerprinting (heuristic zenginlestirme)
+- Nmap script ciktilarindan **CVE gorunurlugu** (CVE ID baglami; CVSS her zaman mevcut degildir)
+- Pasif trafik izleme (Scapy) ve 5-tuple flow cikarma
+- 6 live numeric feature ile Isolation Forest tabanli **anomali sinyali**
+- Servis/CVE gorunurlugu + anomali sinyali ile **hybrid risk scoring**
+- React/Vite **SOC-style security operations cockpit**:
+  - Command Center
+  - Security Event Timeline
+  - Device Detail / Analyst Investigation
+  - AI Analysis (opsiyonel, grounded)
+  - Validation (synthetic/runtime ayrimi)
+- Interaktif ag topolojisi (gorsellestirme)
+- Offline N-BaIoT benchmark (canli sistem basarisi degildir)
 
 ## Mimari
 
@@ -93,7 +99,7 @@ Backend:
 ```powershell
 cd sentinel_iot
 .\.venv\Scripts\activate
-uvicorn api.main:app --reload
+uvicorn sentinel_iot.api.main:app --reload
 ```
 
 Frontend:
@@ -115,11 +121,14 @@ powershell -ExecutionPolicy Bypass -File .\run_dev.ps1
 
 1. Backend'i baslat.
 2. Frontend'i baslat.
-3. Dashboard'u ac.
-4. Scanner sayfasindan hedef ag veya IP icin scan baslat.
-5. Envanter ve cihaz detaylarini incele.
-6. Topoloji ekraninda ag yapisini kontrol et.
-7. Monitor/anomaly tarafinda flow ve risk bilgilerini takip et.
+3. Dashboard'u ac (v6 Command Center).
+4. **Command Center** uzerinden ag taramasini baslat (scan job).
+5. **Security Event Timeline** uzerinden tarama/izleme olaylarini takip et.
+6. Bir cihaz secerek **Device Detail / Analyst Investigation** ekraninda servis kanitlarini, risk breakdown'i ve gecmisi incele.
+7. Opsiyonelse **AI Analysis** ile (yalnizca mevcut baglam uzerinden) aciklama ve sonraki adim onerilerini al.
+8. **Validation** ekraninda:
+   - Synthetic Model Validation (etiketli/sentetik dogrulama) metriklerini gor
+   - Runtime Detection icin etiket olmadigindan **TP/FP/F1 uretilmedigini** ve `not_available` aciklamasini teyit et.
 
 ## LLM Ayari
 
@@ -132,7 +141,7 @@ notepad .env
 
 `.env` icinde `SENTINEL_LLM_PROVIDER`, `SENTINEL_LLM_API_KEY` ve `SENTINEL_LLM_MODEL` alanlari doldurulabilir. `.env` dosyasi `.gitignore` ile dislanir.
 
-## Evaluation / N-BaIoT Benchmark
+## Offline Evaluation / N-BaIoT Benchmark (Akademik Referans)
 
 N-BaIoT raw dataset, processed dataset ve model dosyalari repoya dahil edilmez. Raw veri seti manuel olarak su klasore yerlestirilmelidir:
 
@@ -163,30 +172,18 @@ python evaluation/analyze_nbaiot_feature_leakage.py
 python evaluation/compare_nbaiot_models.py
 ```
 
-## Model Dogrulama Ozeti
+## Validation Anlatimi (Dürüst Ayrim)
 
-Bu sonuclar offline N-BaIoT benchmark sonucudur; canli Sentinel-IoT sistem basarisi olarak yorumlanmamalidir.
+SentinelIoT'da iki farkli dogrulama katmani vardir ve karistirilmamalidir:
 
-| Deney | F1-score |
-| --- | ---: |
-| Random Split RF | 0.999994 |
-| Device Split RF | 0.999206 |
-| Attack Split Ortalama | 0.803536 |
-| Device + Attack Split Ortalama | 0.806298 |
-| Isolation Forest Best | 0.991886 |
+1. **Synthetic Model Validation**: Etiketli/sentetik veya kontrollu dogrulama verisiyle hesaplanan metrikler (akademik dogrulama ciktisi).
+2. **Runtime Detection (Canli Cikarim)**: Canli agda etiket olmadigi icin TP/FP/F1 gibi etiketli operasyon basari metrikleri **uretilmez**. `/metrics` endpointi bu durumu `runtime_detection_metrics: null` ve `runtime_metrics_metadata.source: not_available` ile belirtir.
 
-Leakage supheli feature: `HH_jit_L0.01_mean`.
-
-Canli Sentinel-IoT runtime modeli 6 numeric flow feature kullanir: `packet_count`, `byte_count`, `duration`, `avg_packet_size`, `mean_iat`, `var_iat`. N-BaIoT benchmark modelleri ise 115 numeric feature uzerinde egitilmistir. Bu nedenle N-BaIoT modeli dogrudan canli sisteme baglanmamistir.
-
-`/metrics` endpointi canli sistem icin TP/FP/F1 gibi etiketli operasyon basari metrikleri uretmez. Bu metrikler etiketli canli olay gerektirir; prototipte bu alan `runtime_detection_metrics: null` ve `source: not_available` metadata ile doner. Offline N-BaIoT benchmark sonuclari ayri tutulur ve canli sistem basarisi olarak yorumlanmamalidir.
-
-Detayli analiz icin:
+Offline N-BaIoT benchmark sonuclari canli sistem basarisi degildir. Sayisal sonuclar ve genelleme analizi icin:
 
 ```text
 docs/model_validation_summary.md
 docs/slides_model_validation_text.md
-docs/evaluation_results/
 ```
 
 ## Sinirliliklar

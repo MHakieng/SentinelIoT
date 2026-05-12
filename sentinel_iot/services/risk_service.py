@@ -1,16 +1,15 @@
-from typing import List, Dict, Any, Optional
-from sentinel_iot.core.risk_engine import RiskEngine
 from sentinel_iot.database.db import get_device_risk_history, get_device_anomaly_logs
+from sentinel_iot.services.context_risk_engine import ContextualRiskEngine
 
 class RiskService:
     """Service for managing risk score calculation and device history."""
     
-    def __init__(self, risk_engine: RiskEngine):
+    def __init__(self, risk_engine: ContextualRiskEngine):
         self.risk_engine = risk_engine
 
-    def calculate_risk(self, open_ports: List[Dict[str, Any]], anomalies: List[Dict[str, Any]], asset_type='iot'):
-        """Calculate context-aware risk score."""
-        return self.risk_engine.evaluate_device(open_ports, anomalies, asset_type=asset_type)
+    def calculate_risk(self, asset_id: str):
+        """Calculate contextual risk for a persisted asset (device ip)."""
+        return self.risk_engine.calculate_risk(asset_id)
 
     def get_history(self, device_ip: str):
         """Retrieve historical risk scores."""

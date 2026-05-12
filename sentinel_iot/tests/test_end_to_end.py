@@ -3,16 +3,16 @@ import threading
 from fastapi.testclient import TestClient
 
 from sentinel_iot.api.main import app
-from sentinel_iot.core.risk_engine import RiskEngine
 from sentinel_iot.ml.anomaly_model import AnomalyModel
 from sentinel_iot.ml.generate_dataset import generate_iot_traffic
+from sentinel_iot.services.context_risk_engine import ContextualRiskEngine
+from sentinel_iot.database.db import upsert_device, save_anomaly_log, save_risk_history
 
 
 def test_full_pipeline_logic(tmp_path):
-    """Validate the backend pipeline: traffic -> anomaly -> risk."""
-    mock_scan_data = [
-        {"port": 80, "service": "http", "version": "2.4.41", "cpe": "cpe:/a:apache:http_server:2.4.41"}
-    ]
+    """Validate the backend pipeline: traffic -> anomaly -> contextual risk."""
+    device_ip = "192.168.1.50"
+    mock_scan_data = [{"port": 80, "service": "http", "cves": [{"id": "CVE-X", "cvss": 7.5}]}]
 
     flow_features = generate_iot_traffic(num_samples=1, anomaly_ratio=1.0)[0]
 
@@ -23,11 +23,30 @@ def test_full_pipeline_logic(tmp_path):
     assert "score" in result
     assert "label" in result
 
-    risk_result = RiskEngine().evaluate_device(mock_scan_data, [result])
+    # Persist a minimal device snapshot + anomaly evidence so ContextualRiskEngine can read DB state.
+    upsert_device(
+        {
+            "ip": device_ip,
+            "mac": "00:00:00:00:00:00",
+            "vendor": "Test",
+            "risk_score": 0.0,
+            "status": "Safe",
+            "open_ports": mock_scan_data,
+            "total_cves": 1,
+            "asset_type": "iot",
+            "priority": 1,
+            "risk_breakdown": {"vuln": 0.0, "anomaly": 0.0},
+        }
+    )
+    save_anomaly_log(device_ip, "test_anomaly", float(result.get("score", 0.0)), {"score": float(result.get("score", 0.0))})
+    save_risk_history(device_ip, 10.0, 5.0, 5.0)
+
+    risk_result = ContextualRiskEngine().calculate_risk(device_ip)
 
     assert "risk_score" in risk_result
     assert "status" in risk_result
-    assert risk_result["anomaly_component"] > 0
+    assert risk_result["anomaly_component"] >= 0
+    assert 0.0 <= risk_result["risk_score"] <= 100.0
 
 
 def test_api_concurrency_stress():

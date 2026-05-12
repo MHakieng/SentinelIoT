@@ -4,24 +4,25 @@ Bu rapor Sentinel-IoT projesinin final savunma oncesi teknik tutarlilik denetimi
 
 ## Genel Karar: Proje Hedefinden Uzak Mi?
 
-Hayir. Proje hedefinden uzaklasmamis. Sentinel-IoT; IoT ag gorunurlugu, scanner, servis/CVE baglami, pasif monitoring, flow feature extraction, Isolation Forest runtime anomaly detection, risk scoring, dashboard, LLM aciklama katmani ve offline N-BaIoT benchmark hatlariyla kendi hedefi icinde tutarli bir akademik prototip durumunda.
+Hayir. Proje hedefinden uzaklasmamis. Sentinel-IoT; IoT ag gorunurlugu, scanner, servis/CVE baglami, pasif monitoring, flow feature extraction, Isolation Forest runtime anomaly detection, risk scoring, **v6 Command Center tabanli SOC-style operasyon kokpiti**, LLM aciklama katmani ve offline N-BaIoT benchmark hatlariyla kendi hedefi icinde tutarli bir akademik prototip durumunda.
 
 Ancak proje "production-ready guvenlik urunu" olarak sunulmamali. En dogru konumlandirma: calisan akademik IoT guvenlik gorunurlugu prototipi + offline ML benchmark calismasi.
 
 ## Guclu Taraflar
 
-- FastAPI backend, React dashboard ve scanner/monitor/ML/evaluation ayrimi net.
+- FastAPI backend, React (v6 Command Center) UI ve scanner/monitor/ML/evaluation ayrimi net.
 - Nmap tabanli cihaz/servis gorunurlugu gercek araclarla yapiliyor.
 - Flow extractor 5-tuple ve 6 numeric live feature semasi kullanıyor.
 - Runtime Isolation Forest StandardScaler ile calisiyor.
 - Risk engine port, CVE, anomaly, asset type ve confidence baglamlarini birlestiriyor.
 - N-BaIoT benchmark random split ile sinirli kalmamis; device split, attack split, device+attack split ve leakage analizi eklenmis.
 - Repo temizligi yapilmis; dataset/model/secret artefaktlari GitHub'a alinmiyor.
+- Onceki statik `real_world_metrics` riski giderilmis; runtime TP/FP/F1 etiketli canli veri olmadiginda `not_available` olarak sunuluyor.
 - Resmi dogrulama scripti calisiyor: backend `66 passed, 3 skipped`, frontend lint/build passed.
 
 ## Teknik Eksikler
 
-- `/metrics` endpointinde statik `real_world_metrics` degerleri var; bunlar gercek operasyon metrikleri gibi sunulursa yaniltici olur.
+- Runtime TP/FP/F1 metrikleri etiketli canli olay gerektirir; mevcut prototip bu metrikleri uretmez ve `/metrics` bunu `not_available` metadata ile bildirir.
 - N-BaIoT supervised modeli canli sisteme entegre degil; feature semasi farkli.
 - Scanner CVE extraction CVE ID regex agirlikli; CVSS skoru scanner tarafinda sistematik cikarilmiyor.
 - Risk engine fallback CVSS mantigi dict-CVE semasi bekliyor; scanner'in string CVE listesiyle entegrasyonu dogrulanmali.
@@ -49,7 +50,7 @@ Ancak proje "production-ready guvenlik urunu" olarak sunulmamali. En dogru konum
 
 ## Raporlarda Duzeltilmesi Gereken Ilk 10 Madde
 
-1. "Gercek dunya metrikleri" ifadesini kaldir veya demo placeholder olarak etiketle.
+1. "Gercek dunya metrikleri" ifadesini kullanma; mevcut davranisi `runtime metrics not_available` olarak anlat.
 2. "CVE analizi"ni "Nmap script ciktilarindan CVE gorunurlugu" diye yumuşat.
 3. Risk formulu anlatimina asset multiplier, port modifiers ve contextual confidence ekle.
 4. Packet capture sinirlarini switched network/Wi-Fi baglaminda yaz.
@@ -62,12 +63,12 @@ Ancak proje "production-ready guvenlik urunu" olarak sunulmamali. En dogru konum
 
 ## Kodda Kritik Duzeltme Gerektiren Ilk 10 Madde
 
-1. `MLService.get_metrics()` icindeki statik `real_world_metrics` alanlarini kaldir veya `demo_metrics` olarak yeniden adlandir.
+1. Runtime TP/FP/F1 icin etiketli canli olay toplama ve dogrulama akisi ekle.
 2. CVE string listesi ile RiskEngine CVSS dict semasini uyumlu hale getir; CVSS yoksa fallback kullanildigini raporla.
 3. Runtime model yoksa UI'da "model not trained/unavailable" durumunu daha net goster.
 4. Packet capture icin interface secimi ve izin hatalarini UI'ya daha acik tasiyin.
 5. `verify_release.ps1` build chunk warning'i raporlayabilir; kritik degil.
-6. Dashboard metrics ekraninda offline benchmark ve runtime metrikleri ayri bloklarda tutulmali.
+6. Dashboard/Validation ekraninda offline benchmark ve runtime metrikleri ayri bloklarda tutulmali.
 7. Risk history/topology gateway IP gibi sabit varsayimlar config'e alinabilir.
 8. `get_local_network()` /24 varsayimini opsiyonel subnet config ile destekleyebilir.
 9. Nmap `vulners` script yoksa uyari ve fallback davranisi daha acik olabilir.

@@ -34,6 +34,8 @@ Yuksek seviyede aktif risk kalmadi. Onceki `/metrics` statik operasyon metrigi r
 
 - Sentinel-IoT bir production IDS/IPS urunu degil, akademik guvenlik gorunurlugu prototipidir.
 - Runtime TP/FP/F1 metrikleri etiketli canli olay gerektirir ve bu prototipte mevcut degildir.
+- Offline model validation metrikleri `evaluation/results` altindaki JSON raporlarindan gelir; live flow scoring ise runtime inference ciktisidir ve accuracy/F1 gibi gercek basari metrigi olarak sunulmaz.
+- Reward/penalty katmani ML modelini egitmez veya yeniden egitmez; sadece mevcut model skorunu aciklanabilir operasyonel risk kalibrasyonuna donusturur.
 - N-BaIoT modeli canli sisteme dogrudan entegre edilmedi; offline benchmark olarak kullanildi.
 - N-BaIoT benchmark 115 numeric feature kullanir, canli Sentinel-IoT runtime akisi 6 numeric feature uretir.
 - Random split sonuclari model kapasitesini gosterir; genelleme siniri attack split ve device+attack split ile daha gercekci ortaya kondu.
@@ -42,6 +44,10 @@ Yuksek seviyede aktif risk kalmadi. Onceki `/metrics` statik operasyon metrigi r
 - CVE/CVSS gorunurlugu Nmap script ciktisinin kalitesine baglidir.
 - Auth/JWT/OAuth2, HTTPS ve production deployment gelecek calisma kapsamindadir.
 - LLM yanitlari karar verici degil, analist yardimcisi olarak konumlandirilmistir.
+
+## Savunma Aciklamasi: Live Flow Scoring
+
+"Live flow tarafinda ham paketler dogrudan puanlanmaz. Paketler once flow seviyesinde gruplanir ve packet_count, byte_count, duration, avg_packet_size, mean_iat ve var_iat gibi ozellikler cikarilir. Bu ozellikler mevcut ML modeline verilerek normalize edilmis anomali skoru uretilir. Ardindan reward/penalty tabanli aciklanabilir kalibrasyon uygulanir. Boylece sistem yalnizca risk skoru uretmez, ayni zamanda bu riskin hangi davranislardan kaynaklandigini da gosterir."
 
 ## Kod Duzeltmesi Gerektiren Alanlar
 

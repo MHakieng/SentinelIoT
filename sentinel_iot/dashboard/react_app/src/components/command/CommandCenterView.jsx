@@ -110,8 +110,7 @@ const CommandCenterView = ({
   const riskyDevices = devices.filter((device) => Number(device.risk_score || 0) >= 70)
   const exposedServices = devices.reduce((sum, device) => sum + (Array.isArray(device.open_ports) ? device.open_ports.length : 0), 0)
   const anomalyFlows = liveFlows.filter((flow) => flow.label === 1 || Number(flow.anomaly_score || 0) >= 0.5)
-  const livePacketsTotal = trafficHistory.reduce((sum, point) => sum + Number(point.packets || 0), 0)
-  const runtimeSource = systemMetrics?.runtime_metrics_metadata?.source || 'not_available'
+  const hasRuntimeLabels = Boolean(systemMetrics?.runtime_detection_metrics)
 
   const timeline = useMemo(() => buildSecurityTimelineEvents({
     devices,
@@ -244,19 +243,18 @@ const CommandCenterView = ({
 
       <section className="command-kpi-strip">
         {[
-          ['İzlenen cihaz', devicesLoading ? '...' : formatNumber(devices.length), <Database size={18} />, 'Gerçek envanter kaydı'],
-          ['Yüksek risk', devicesLoading ? '...' : formatNumber(riskyDevices.length), <ShieldAlert size={18} />, 'Risk skoru >= 70'],
-          ['Açık servis', devicesLoading ? '...' : formatNumber(exposedServices), <Router size={18} />, 'Son tarama verisi'],
-          ['Canlı akış', trafficLoading ? '...' : formatNumber(liveFlows.length), <Activity size={18} />, 'Monitor flow snapshot'],
-          ['Anomali akışı', trafficLoading ? '...' : formatNumber(anomalyFlows.length), <Zap size={18} />, 'Label veya yüksek skor'],
-          ['Runtime metrik', metricsLoading ? '...' : runtimeSource, <BarChart3 size={18} />, metricsError || 'TP/FP/F1 etiketli canlı veri gerektirir'],
-        ].map(([label, value, icon, note]) => (
+          ['İzlenen Cihaz', devicesLoading ? '...' : formatNumber(devices.length), <Database size={18} />],
+          ['Yüksek Risk', devicesLoading ? '...' : formatNumber(riskyDevices.length), <ShieldAlert size={18} />],
+          ['Açık Servis', devicesLoading ? '...' : formatNumber(exposedServices), <Router size={18} />],
+          ['Canlı Akış', trafficLoading ? '...' : formatNumber(liveFlows.length), <Activity size={18} />],
+          ['Şüpheli Akış', trafficLoading ? '...' : formatNumber(anomalyFlows.length), <Zap size={18} />],
+          ['Model Durumu', metricsLoading ? '...' : (hasRuntimeLabels ? 'Aktif' : 'Veri Yok'), <BarChart3 size={18} />],
+        ].map(([label, value, icon]) => (
           <div key={label} className="command-kpi-card">
             <div className="command-kpi-icon">{icon}</div>
             <div>
               <div className="metric-label">{label}</div>
               <div className="command-kpi-value">{value}</div>
-              <div className="status-note">{note}</div>
             </div>
           </div>
         ))}
@@ -267,7 +265,6 @@ const CommandCenterView = ({
           <div className="section-header">
             <div>
               <h3 className="command-section-title"><Shield size={18} /> Operation Map</h3>
-              <div className="section-subtitle">Topoloji, risk ve canlı akış sinyalleri tek operasyon haritasında izlenir.</div>
             </div>
             <div className="status-note">Son güncelleme: {formatTime(topologyLastUpdated)}</div>
           </div>
@@ -287,7 +284,7 @@ const CommandCenterView = ({
               <div className="empty-state topology-fill">
                 <Shield className="empty-state-icon" />
                 <div className="empty-state-title">Operasyon haritası boş</div>
-                <div className="empty-state-copy">Cihaz keşfi için ağ taraması başlatın.</div>
+                <div className="empty-state-copy">Ağ taraması başlatın.</div>
               </div>
             ) : (
               <ForceGraph2D
@@ -318,7 +315,6 @@ const CommandCenterView = ({
           <div className="section-header">
             <div>
               <h3 className="command-section-title"><ShieldAlert size={18} /> Priority Queue</h3>
-              <div className="section-subtitle">En yüksek riskli cihazlar.</div>
             </div>
           </div>
           <div className="command-device-list">
@@ -334,14 +330,14 @@ const CommandCenterView = ({
                   <span className={`command-risk-dot ${tone}`}></span>
                   <span>
                     <strong>{device.ip}</strong>
-                    <small>{device.vendor && device.vendor !== 'Unknown' ? device.vendor : 'Tanımlanamayan cihaz'}</small>
+                    <small>{device.vendor && device.vendor !== 'Unknown' ? device.vendor : 'Bilinmeyen Üretici'}</small>
                   </span>
                   <b>{Math.round(device.risk_score || 0)}</b>
                 </button>
               )
             })}
             {!devicesLoading && priorityDevices.length === 0 && (
-              <div className="state-message state-message-compact">Öncelik kuyruğu için cihaz verisi bekleniyor.</div>
+              <div className="state-message state-message-compact">Cihaz verisi yok.</div>
             )}
           </div>
         </aside>
@@ -350,7 +346,6 @@ const CommandCenterView = ({
           <div className="section-header">
             <div>
               <h3 className="command-section-title"><Sparkles size={18} /> Device Intelligence</h3>
-              <div className="section-subtitle">{selected ? selected.ip : 'Cihaz seçilmedi'}</div>
             </div>
             <button className="btn command-ghost-btn" type="button" onClick={loadAnalysis} disabled={!selected || analysisLoading}>
               {analysisLoading ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />}
@@ -367,7 +362,6 @@ const CommandCenterView = ({
                 <div>
                   <div className="metric-label">Durum</div>
                   <div className="metric-value">{translateRiskStatus(selected.status)}</div>
-                  <div className="status-note">{Array.isArray(selected.open_ports) ? selected.open_ports.length : 0} açık servis</div>
                 </div>
               </div>
               {analysisLoading ? (
@@ -400,7 +394,6 @@ const CommandCenterView = ({
           <div className="section-header">
             <div>
               <h3 className="command-section-title"><Clock3 size={18} /> Security Event Timeline</h3>
-              <div className="section-subtitle">Tarama, izleme ve yüksek sinyal olayları.</div>
             </div>
           </div>
           <SecurityEventTimeline
@@ -414,9 +407,6 @@ const CommandCenterView = ({
           <div className="section-header">
             <div>
               <h3 className="command-section-title"><Terminal size={18} /> Live Flow / Packet Preview</h3>
-              <div className="section-subtitle">
-                {historyLoading ? 'Trafik geçmişi yükleniyor.' : historyError ? historyError : `${formatNumber(livePacketsTotal)} paketlik son trafik geçmişi.`}
-              </div>
             </div>
             <button className="btn command-ghost-btn" type="button" onClick={onToggleMonitoring} disabled={monitorActionLoading || monitorStatus === 'stopping'}>
               {monitorActionLoading ? <Loader2 size={14} className="spin" /> : <Activity size={14} />}

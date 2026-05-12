@@ -18,10 +18,10 @@ Bu denetim fazla iddiali veya kodla karisabilecek ifadeleri listeler.
 | "10+ feature" | Bulunmadi. | Hayir | Canli model 6 feature. | Medium | "6 live numeric feature; N-BaIoT 115 feature". |
 | "10.000+ veri setiyle egitildi" | Bulunmadi. | Hayir | Dataset sayilari context gerektirir. | Low | Kullanilmamali. |
 | "Full test suite" | Dokumanlarda test/build geciyor. | Kismi | `verify_release.ps1` geciyor. | Low | Komut ve sonuc ile birlikte yazilmali: `66 passed, 3 skipped`, frontend build passed. |
-| "gercek dunya metrikleri" | Kodda `real_world_metrics` alan adi. | Hayir | Statik degerler. | Critical | "demo_metrics" veya "placeholder_metrics"; gercek metrik gibi gosterilmemeli. |
+| "gercek dunya metrikleri" | Onceki kodda `real_world_metrics` alan adi vardi; mevcut kod statik operasyon metrigi dondurmuyor. | Hayir | TP/FP/F1 etiketli canli olay olmadigi icin `not_available` olarak sunuluyor. | Low | "runtime metrics not_available"; gercek metrik gibi gosterilmemeli. |
 | "tamamlandı/tamamlandi" | UI scan durumunda ve script bitisinde kullaniliyor. | Evet | Islem durumunu anlatir. | Low | Kalabilir. |
 | "tamamen thread-safe" | Bulunmadi. | Hayir | Kismi lock kullanimi var; tam garanti verilmemeli. | Medium | "thread lock ile temel runtime state korunur". |
 
 ## Dokumantasyon Temizligi Karari
 
-Dokumantasyon genel olarak proje sinirlarini dogru anlatmaya baslamis. En onemli risk, akademik "kanit" dilinin fazla kesin algilanmasi ve statik metriklerin gercek operasyon metrikleri gibi gorunmesidir.
+Dokumantasyon genel olarak proje sinirlarini dogru anlatmaya baslamis. En onemli risk, akademik "kanit" dilinin fazla kesin algilanmasi ve runtime TP/FP/F1 metriklerinin etiketli canli veri olmadan mevcut olmadiginin unutulmasidir.

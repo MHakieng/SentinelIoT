@@ -14,10 +14,10 @@ Bu denetim guvenlik, secret yonetimi ve deployment gercekciligini inceler.
 | Packet capture yetkisi | `packet_capture.py` PermissionError logluyor; README yetki gerekebilir diyor. | Medium | README'ye switched network/Wi-Fi siniri eklenmeli. |
 | Switched network/Wi-Fi siniri | Dokumanda yeterince acik degil. | Medium | "Monitor sadece makinenin gorebildigi trafiği yakalar; switch mirror/SPAN yoksa tum ag trafiği gorulmeyebilir" eklenmeli. |
 | Promiscuous mode | Kod explicit promiscuous mode garantisi vermiyor. | Medium | "Promiscuous mode ile tum trafik gorulur" gibi iddialar kullanilmamali. |
-| Deployment | Docker/production deployment yok; README bunu belirtiyor. | Low | Uyumlu. |
+| Deployment | Docker/production deployment yok; README bunu belirtiyor. | Low | Uyumlu. (UI v6 Command Center olsa bile bu, deployment gercekciligini degistirmez.) |
 | HTTPS/TLS/API auth | Local API HTTP calisir; auth yok. | Medium | "Yerel demo/prototip" siniri net tutulmali. |
 | LLM output safety | Promptlar LLM'in CVSS/patch/vendor guidance uydurmamasini istiyor. | Low | Uyumlu; yine de LLM ciktilari karar destek olarak sunulmali. |
-| Static metrics | `/metrics` statik `real_world_metrics` donduruyor. | High | Guvenlik veya operasyon metrikleri gibi sunulmamali; demo placeholder olarak etiketlenmeli. |
+| Runtime metrics | `/metrics` statik `real_world_metrics` dondurmuyor; etiketli canli olay olmadigi icin runtime TP/FP/F1 `not_available` olarak sunuluyor. | Low | Bu davranis korunmali; etiketli veri olmadan operasyon basari metrigi iddia edilmemeli. |
 
 ## Deployment Karari
 

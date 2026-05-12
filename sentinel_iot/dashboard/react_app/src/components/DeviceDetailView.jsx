@@ -319,7 +319,6 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             <div className="section-header">
               <div>
                 <h3 className="command-section-title"><ShieldAlert size={18} /> Why is this device risky?</h3>
-                <div className="section-subtitle">Risk engine bileşenleri ve en yakın kanıtlar.</div>
               </div>
             </div>
             <div className="device-risk-components">
@@ -369,7 +368,6 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             <div className="section-header">
               <div>
                 <h3 className="command-section-title"><TrendingUp size={18} /> Risk History</h3>
-                <div className="section-subtitle">/devices/{'{ip}'}/history kaynağından gelen risk değişimi.</div>
               </div>
               <span className="badge badge-neutral">{history.length} kayıt</span>
             </div>
@@ -377,7 +375,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
               {history.length === 0 ? (
                 <div className="empty-state p-0">
                   <TrendingUp className="empty-state-icon" />
-                  <div className="empty-state-copy">Bu cihaz için henüz risk geçmişi kaydedilmedi.</div>
+                  <div className="empty-state-copy">Risk geçmişi yok.</div>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -407,7 +405,6 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             <div className="section-header">
               <div>
                 <h3 className="command-section-title"><Activity size={18} /> Anomaly Records</h3>
-                <div className="section-subtitle">/devices/{'{ip}'}/anomalies kaynağından gelen izleme kanıtları.</div>
               </div>
             </div>
             <div className="device-event-timeline">
@@ -421,10 +418,8 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                         {formatScore(log.score)}
                       </span>
                     </div>
-                    <p>Bu cihaz için monitor kaynaklı anomali kaydı.</p>
                     <div className="command-timeline-meta">
                       <span>{log.timestamp || 'zaman yok'}</span>
-                      <span>source: anomaly_logs</span>
                     </div>
                   </div>
                 </article>
@@ -432,7 +427,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                 <div className="empty-state command-timeline-empty">
                   <Activity className="empty-state-icon" />
                   <div className="empty-state-title">Anomali kaydı yok</div>
-                  <div className="empty-state-copy">Bu cihaz için henüz izleme olayı kaydedilmedi.</div>
+                  <div className="empty-state-copy">Kayıt yok.</div>
                 </div>
               )}
             </div>
@@ -444,7 +439,6 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             <div className="section-header">
               <div>
                 <h3 className="command-section-title"><Sparkles size={18} /> Analyst Insight</h3>
-                <div className="section-subtitle">Mevcut LLM device analysis akışı.</div>
               </div>
             </div>
             <div className="device-action-row">
@@ -462,7 +456,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             {!aiAnalysis && !aiLoading && !aiError && (
               <div className="empty-state command-timeline-empty">
                 <Sparkles className="empty-state-icon" />
-                <div className="empty-state-copy">Risk açıklaması ve sonraki adımlar için analizi yükleyin.</div>
+                <div className="empty-state-copy">Analizi yükleyin.</div>
               </div>
             )}
             {aiLoading && (
@@ -523,7 +517,6 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             <div className="section-header">
               <div>
                 <h3 className="command-section-title"><Server size={18} /> Technical Evidence</h3>
-                <div className="section-subtitle">Servis ve CVE odaklı kanıt alanı.</div>
               </div>
             </div>
             {openPorts.length > 0 ? (

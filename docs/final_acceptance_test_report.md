@@ -4,7 +4,7 @@
 
 Denetim tarihi: 2026-05-07  
 Denetim modu: Final acceptance / QA kontrolu  
-Genel karar: Final savunmaya hazir. Onceki iki FAIL giderildi: `/metrics` artik statik `real_world_metrics` dondurmuyor ve frontend bu degerleri gercek operasyon ozeti gibi gostermiyor.
+Genel karar: Final savunmaya hazir. Onceki iki FAIL giderildi: `/metrics` artik statik `real_world_metrics` dondurmuyor ve v6 Command Center tabanli frontend bu degerleri gercek operasyon ozeti gibi gostermiyor.
 
 ## Calistirilan Komutlar
 
@@ -23,7 +23,7 @@ Genel karar: Final savunmaya hazir. Onceki iki FAIL giderildi: `/metrics` artik 
 - `/metrics` statik operasyon metrigi dondurmuyor.
 - `/metrics.runtime_detection_metrics` etiketli canli veri olmadigi icin `null`.
 - `/metrics.runtime_metrics_metadata.source` degeri `not_available`.
-- Frontend runtime karti `Runtime Metrics Status` olarak degistirildi.
+- Frontend (v6 Command Center / Validation) runtime karti `Runtime Metrics Status` olarak degistirildi.
 - Frontend TP/FP/F1 icin etiketli canli olay gerektigini acikca gosteriyor.
 - `/health` response'u local SQLite absolute path dondurmuyor; `database_status`, `database_type`, `path_exposed=false` ozetini donduruyor.
 - Pytest basarili.

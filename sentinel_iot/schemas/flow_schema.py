@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
 
 class FlowBase(BaseModel):
     flow_id: str
@@ -16,10 +16,34 @@ class FlowMetrics(FlowBase):
     avg_packet_size: float
     mean_iat: float
     var_iat: float
+    packet_rate: float = 0.0
+    # ── Genişletilmiş öznitelikler ──
+    tcp_syn_ratio: float = 0.0
+    tcp_synack_ratio: float = 0.0
+    unique_dst_ip_count: int = 0
+    unique_dst_port_count: int = 0
+    rst_syn_ratio: float = 0.0
+    dns_query_response_ratio: float = 0.0
+    unique_domain_count: int = 0
+    pkt_size_variance: float = 0.0
+    bytes_per_second: float = 0.0
+    small_pkt_ratio: float = 0.0
+    large_pkt_ratio: float = 0.0
+    # ── UI / anomali meta verileri ──
     protocol_name: str = "Unknown"
     anomaly_score: float = 0.0
+    ml_raw_score: float = 0.0
+    ml_anomaly_score: float = 0.0
+    reward_points: int = 0
+    penalty_points: int = 0
+    final_flow_risk: float = 0.0
+    severity: str = "low"
+    reasons: List[str] = Field(default_factory=list)
+    features: Dict[str, Any] = Field(default_factory=dict)
+    scoring_breakdown: Optional[Dict[str, Any]] = None
     label: int = 0
     confidence: float = 1.0
+    model: Optional[Dict[str, Any]] = None
 
 class PacketInfo(BaseModel):
     timestamp: str

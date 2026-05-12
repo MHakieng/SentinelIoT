@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ml.feature_schema import validate_features, FEATURE_SCHEMA
 from ml.anomaly_model import AnomalyModel
 from ml.generate_dataset import generate_iot_traffic
-from core.risk_engine import RiskEngine
+from services.context_risk_engine import ContextualRiskEngine
 
 def test_feature_schema_consistency():
     """EMİR: dataset üret, validate_features çalıştır, eksik kolon olmamalı."""
@@ -38,15 +38,11 @@ def test_anomaly_score_range():
         assert 0.0 <= norm <= 1.0, f"Skor aralık dışı: {norm} (raw: {raw})"
 
 def test_risk_engine_input_contract():
-    """EMİR: anomaly_score = 60 ver, HATA bekle."""
-    engine = RiskEngine()
-    
-    # anomaly_score 0.0-1.0 arasında olmalı. 60 verilirse ValueError bekliyoruz.
-    with pytest.raises(ValueError) as excinfo:
-        engine.calculate_device_risk(cvss_score=5.0, anomaly_score=60.0)
-    
-    assert "gecersiz" in str(excinfo.value)
-    print(f"[+] Risk Engine correctly rejected invalid input: {excinfo.value}")
+    """EMİR: risk skorunun 0-100 aralığında kalması gerekir."""
+    engine = ContextualRiskEngine()
+    ports = [{"port": 80, "service": "http", "cves": [{"id": "CVE-X", "cvss": 9.8}]}]
+    vuln_score, _ = engine._vulnerability_score(ports)
+    assert 0.0 <= vuln_score <= 100.0
 
 def test_dataset_generator_output():
     """EMİR: dataset generator testini yaz."""

@@ -5,17 +5,34 @@ import pytest
 from sentinel_iot.ml.anomaly_model import AnomalyModel
 
 
+# ── 17-feature uyumlu yardımcı sözlükler ──
+_EXTRA_NORMAL = {
+    'tcp_syn_ratio': 0.05, 'tcp_synack_ratio': 0.05,
+    'unique_dst_ip_count': 1, 'unique_dst_port_count': 1, 'rst_syn_ratio': 0.0,
+    'dns_query_response_ratio': 0.0, 'unique_domain_count': 0,
+    'pkt_size_variance': 200.0, 'bytes_per_second': 1000.0,
+    'small_pkt_ratio': 0.5, 'large_pkt_ratio': 0.0,
+}
+
+_EXTRA_ANOMALY = {
+    'tcp_syn_ratio': 0.9, 'tcp_synack_ratio': 0.0,
+    'unique_dst_ip_count': 1, 'unique_dst_port_count': 1, 'rst_syn_ratio': 0.0,
+    'dns_query_response_ratio': 0.0, 'unique_domain_count': 0,
+    'pkt_size_variance': 10.0, 'bytes_per_second': 10000000.0,
+    'small_pkt_ratio': 0.8, 'large_pkt_ratio': 0.0,
+}
+
 # Realistic test data
 NORMAL_DATA = [
-    {'packet_count': 10, 'byte_count': 1000, 'duration': 1.0, 'avg_packet_size': 100, 'mean_iat': 0.1, 'var_iat': 0.002, 'dst_ip': '192.168.1.10', 'label': 0},
-    {'packet_count': 12, 'byte_count': 1100, 'duration': 1.1, 'avg_packet_size': 91, 'mean_iat': 0.11, 'var_iat': 0.003, 'dst_ip': '192.168.1.10', 'label': 0},
-    {'packet_count': 8, 'byte_count': 900, 'duration': 0.9, 'avg_packet_size': 112, 'mean_iat': 0.09, 'var_iat': 0.001, 'dst_ip': '192.168.1.10', 'label': 0},
-    {'packet_count': 15, 'byte_count': 1500, 'duration': 1.5, 'avg_packet_size': 100, 'mean_iat': 0.107, 'var_iat': 0.002, 'dst_ip': '192.168.1.20', 'label': 0},
-    {'packet_count': 9, 'byte_count': 850, 'duration': 0.8, 'avg_packet_size': 94, 'mean_iat': 0.1, 'var_iat': 0.004, 'dst_ip': '192.168.1.20', 'label': 0},
+    {'packet_count': 10, 'byte_count': 1000, 'duration': 1.0, 'avg_packet_size': 100, 'mean_iat': 0.1, 'var_iat': 0.002, 'dst_ip': '192.168.1.10', 'label': 0, **_EXTRA_NORMAL},
+    {'packet_count': 12, 'byte_count': 1100, 'duration': 1.1, 'avg_packet_size': 91, 'mean_iat': 0.11, 'var_iat': 0.003, 'dst_ip': '192.168.1.10', 'label': 0, **_EXTRA_NORMAL},
+    {'packet_count': 8, 'byte_count': 900, 'duration': 0.9, 'avg_packet_size': 112, 'mean_iat': 0.09, 'var_iat': 0.001, 'dst_ip': '192.168.1.10', 'label': 0, **_EXTRA_NORMAL},
+    {'packet_count': 15, 'byte_count': 1500, 'duration': 1.5, 'avg_packet_size': 100, 'mean_iat': 0.107, 'var_iat': 0.002, 'dst_ip': '192.168.1.20', 'label': 0, **_EXTRA_NORMAL},
+    {'packet_count': 9, 'byte_count': 850, 'duration': 0.8, 'avg_packet_size': 94, 'mean_iat': 0.1, 'var_iat': 0.004, 'dst_ip': '192.168.1.20', 'label': 0, **_EXTRA_NORMAL},
 ]
 
 ANOMALY_DATA = [
-    {'packet_count': 50000, 'byte_count': 10000000, 'duration': 0.1, 'avg_packet_size': 200, 'mean_iat': 0.000002, 'var_iat': 0.0, 'dst_ip': '9.9.9.9', 'label': 1},
+    {'packet_count': 50000, 'byte_count': 10000000, 'duration': 0.1, 'avg_packet_size': 200, 'mean_iat': 0.000002, 'var_iat': 0.0, 'dst_ip': '9.9.9.9', 'label': 1, **_EXTRA_ANOMALY},
 ]
 
 COMBINED_TRAINING = NORMAL_DATA * 20 + ANOMALY_DATA  # Enough data for training

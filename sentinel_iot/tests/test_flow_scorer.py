@@ -1,0 +1,189 @@
+from fastapi.testclient import TestClient
+
+from sentinel_iot.api.dependencies import get_monitor_service
+from sentinel_iot.api.main import app
+from sentinel_iot.ml.flow_scorer import score_flow
+
+
+def test_normal_https_flow_is_low_with_reward():
+    result = score_flow(
+        {
+            "flow_id": "a:1->b:443 [6]",
+            "src_ip": "192.168.1.10",
+            "dst_ip": "93.184.216.34",
+            "src_port": 50000,
+            "dst_port": 443,
+            "protocol": 6,
+            "packet_count": 5,
+            "byte_count": 2500,
+            "duration": 2.0,
+            "avg_packet_size": 500,
+            "mean_iat": 0.5,
+            "var_iat": 0.0005,
+            "packet_rate": 2.5,
+            "bytes_per_second": 1250,
+        },
+        ml_raw_score=0.08,
+        ml_anomaly_score=0.08,
+    )
+
+    assert result["severity"] == "low"
+    assert result["reward_points"] > 0
+    assert result["final_flow_risk"] < 35
+
+
+def test_telnet_burst_flow_is_critical_with_telnet_reason():
+    result = score_flow(
+        {
+            "flow_id": "a:1->b:23 [6]",
+            "src_ip": "192.168.1.20",
+            "dst_ip": "192.168.1.30",
+            "src_port": 51000,
+            "dst_port": 23,
+            "protocol": 6,
+            "packet_count": 400,
+            "byte_count": 2_500_000,
+            "duration": 1.0,
+            "avg_packet_size": 6250,
+            "mean_iat": 0.005,
+            "var_iat": 0.2,
+            "packet_rate": 400,
+            "bytes_per_second": 2_500_000,
+        },
+        ml_raw_score=0.92,
+        ml_anomaly_score=0.92,
+    )
+
+    assert result["severity"] == "critical"
+    assert result["penalty_points"] >= 70
+    assert any("Telnet" in reason or "insecure access" in reason for reason in result["reasons"])
+
+
+def test_flow_risk_clamps_to_100_and_0():
+    high = score_flow(
+        {"dst_port": 23, "packet_rate": 500, "mean_iat": 0.001, "byte_count": 5_000_000, "duration": 1},
+        ml_raw_score=1.0,
+        ml_anomaly_score=1.0,
+    )
+    low = score_flow(
+        {"dst_port": 443, "packet_rate": 1, "mean_iat": 0.5, "var_iat": 0.0001},
+        ml_raw_score=0.0,
+        ml_anomaly_score=0.0,
+    )
+
+    assert high["final_flow_risk"] == 100.0
+    assert low["final_flow_risk"] == 0.0
+
+
+def test_missing_fields_do_not_crash():
+    result = score_flow({}, ml_raw_score=0.1, ml_anomaly_score=0.1)
+
+    assert result["flow_id"] == ""
+    assert result["severity"] == "low"
+    assert isinstance(result["reasons"], list)
+
+
+def test_non_finite_values_do_not_escape_score_bounds():
+    result = score_flow(
+        {
+            "packet_count": "nan",
+            "byte_count": float("inf"),
+            "duration": "-inf",
+            "mean_iat": "nan",
+            "var_iat": "nan",
+        },
+        ml_raw_score=float("nan"),
+        ml_anomaly_score=float("nan"),
+    )
+
+    assert 0.0 <= result["final_flow_risk"] <= 100.0
+    assert result["ml_anomaly_score"] == 0.0
+    assert result["severity"] == "low"
+
+
+def test_live_flow_scores_endpoint_returns_scoring_fields():
+    service = get_monitor_service()
+    flow_id = "192.168.1.10:50000->192.168.1.20:443 [6]"
+    with service._lock:
+        original_flows = dict(service.live_flows)
+        service.live_flows = {
+            flow_id: {
+                "flow_id": flow_id,
+                "src_ip": "192.168.1.10",
+                "dst_ip": "192.168.1.20",
+                "src_port": 50000,
+                "dst_port": 443,
+                "protocol": 6,
+                "packet_count": 3,
+                "byte_count": 1500,
+                "duration": 1.0,
+                "avg_packet_size": 500,
+                "mean_iat": 0.5,
+                "var_iat": 0.0001,
+                "packet_rate": 3,
+                "anomaly_score": 0.05,
+            }
+        }
+
+    try:
+        response = TestClient(app).get("/traffic/flows/scores")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert data
+        assert "final_flow_risk" in data[0]
+        assert "severity" in data[0]
+        assert "reasons" in data[0]
+    finally:
+        with service._lock:
+            service.live_flows = original_flows
+
+
+def test_live_flow_scores_endpoint_returns_empty_list_without_live_flows():
+    service = get_monitor_service()
+    with service._lock:
+        original_flows = dict(service.live_flows)
+        service.live_flows = {}
+
+    try:
+        response = TestClient(app).get("/traffic/flows/scores")
+        assert response.status_code == 200
+        assert response.json() == []
+    finally:
+        with service._lock:
+            service.live_flows = original_flows
+
+
+def test_live_flow_scores_endpoint_handles_malformed_scores():
+    service = get_monitor_service()
+    flow_id = "192.168.1.10:50000->192.168.1.20:80 [6]"
+    with service._lock:
+        original_flows = dict(service.live_flows)
+        service.live_flows = {
+            flow_id: {
+                "flow_id": flow_id,
+                "src_ip": "192.168.1.10",
+                "dst_ip": "192.168.1.20",
+                "src_port": 50000,
+                "dst_port": 80,
+                "protocol": 6,
+                "packet_count": "nan",
+                "byte_count": "bad",
+                "duration": "bad",
+                "avg_packet_size": None,
+                "mean_iat": "nan",
+                "var_iat": "nan",
+                "packet_rate": "bad",
+                "anomaly_score": "bad",
+            }
+        }
+
+    try:
+        response = TestClient(app).get("/traffic/flows/scores")
+        assert response.status_code == 200
+        data = response.json()
+        assert data[0]["final_flow_risk"] == 0.0
+        assert data[0]["severity"] == "low"
+    finally:
+        with service._lock:
+            service.live_flows = original_flows

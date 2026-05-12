@@ -1,3 +1,5 @@
+from sentinel_iot.database.db import get_setting
+
 class RiskEngine:
     """Calculate device risk from vulnerability exposure and anomaly evidence.
 
@@ -12,22 +14,20 @@ class RiskEngine:
             "vulnerability": 0.6,
             "anomaly": 0.4,
         }
-        self.port_modifiers = {
-            21: 1.5,    # FTP
-            22: 1.6,    # SSH
-            23: 1.7,    # Telnet
-            445: 1.7,   # SMB
-            3389: 1.6,  # RDP
-            1883: 1.2,  # MQTT
-            502: 1.4,   # Modbus
+        self._default_port_modifiers = {
+            "21": 1.5, "22": 1.6, "23": 1.7, "445": 1.7, "3389": 1.6, "1883": 1.2, "502": 1.4
         }
-        self.asset_multipliers = {
-            "medical": 1.6,
-            "industrial": 1.4,
-            "iot": 1.1,
-            "home": 1.0,
-            "guest": 0.8,
+        self._default_asset_multipliers = {
+            "medical": 1.6, "industrial": 1.4, "iot": 1.1, "home": 1.0, "guest": 0.8
         }
+
+    def get_port_modifiers(self):
+        raw = get_setting("port_modifiers", self._default_port_modifiers)
+        return {int(k): float(v) for k, v in raw.items()}
+
+    def get_asset_multipliers(self):
+        raw = get_setting("asset_multipliers", self._default_asset_multipliers)
+        return {str(k): float(v) for k, v in raw.items()}
 
     def calculate_confidence_score(self, cvss_base, active_verified, passive_traffic, threat_intel):
         """Apply contextual confidence factors to a CVSS-like score."""
@@ -51,7 +51,7 @@ class RiskEngine:
 
         vuln_base = cvss_score * 10
         anomaly_base = anomaly_score * 100 * anomaly_confidence
-        asset_mult = self.asset_multipliers.get(str(asset_type).lower(), 1.0)
+        asset_mult = self.get_asset_multipliers().get(str(asset_type).lower(), 1.0)
 
         base_risk = (
             vuln_base * self.weights["vulnerability"]
@@ -89,10 +89,11 @@ class RiskEngine:
         if open_ports:
             is_dict_format = isinstance(open_ports[0], dict)
             base_ports_score = min(len(open_ports) * 5, 20)
+            current_port_modifiers = self.get_port_modifiers()
 
             for p_info in open_ports:
                 port_num = self._extract_port_number(p_info, is_dict_format)
-                port_mult = self.port_modifiers.get(port_num, 1.0)
+                port_mult = current_port_modifiers.get(port_num, 1.0)
 
                 if port_mult > 1.0:
                     base_ports_score += 10 * port_mult

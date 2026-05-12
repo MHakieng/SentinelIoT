@@ -1,34 +1,50 @@
-from sentinel_iot.core.risk_engine import RiskEngine
+from sentinel_iot.services.context_risk_engine import ContextualRiskEngine
+from sentinel_iot.database.db import upsert_device, save_risk_history
 
 def test_new_risk_engine():
-    engine = RiskEngine()
+    engine = ContextualRiskEngine()
     
-    print("--- Sentinel-IoT Risk Engine v6.0 Verification ---")
+    print("--- Sentinel-IoT Contextual Risk Engine Verification ---")
     
-    # Scenario 1: Standard IoT Device, Medium Anomaly
-    # Old logic: (0.5 * 100 * 0.4) = 20
-    # New logic: (0.5 * 100 * 0.9 * 0.4) * 1.1 (IoT) = 19.8
-    res1 = engine.calculate_device_risk(cvss_score=0, anomaly_score=0.5, asset_type='iot', anomaly_confidence=0.9)
-    print(f"Scenario 1 (IoT, 0.5 Anom, 0.9 Conf): {res1}")
+    # Scenario 1: IoT device with expected HTTP and a CVE
+    ip = "192.168.1.10"
+    upsert_device(
+        {
+            "ip": ip,
+            "mac": "00:00:00:00:00:00",
+            "vendor": "Test",
+            "risk_score": 0.0,
+            "status": "Safe",
+            "open_ports": [{"port": 80, "service": "http", "cves": [{"id": "CVE-TEST", "cvss": 7.0}]}],
+            "total_cves": 1,
+            "asset_type": "iot",
+            "priority": 1,
+            "risk_breakdown": {"vuln": 0.0, "anomaly": 0.0},
+        }
+    )
+    save_risk_history(ip, 10.0, 5.0, 5.0)
+    res1 = engine.calculate_risk(ip)
+    print(f"Scenario 1 (IoT, HTTP + CVE): {res1}")
 
-    # Scenario 2: Medical Device, Medium Anomaly
-    # Same stats as above but on Medical equipment
-    # New logic: (0.5 * 100 * 0.9 * 0.4) * 1.6 (Medical) = 28.8
-    res2 = engine.calculate_device_risk(cvss_score=0, anomaly_score=0.5, asset_type='medical', anomaly_confidence=0.9)
-    print(f"Scenario 2 (Medical, 0.5 Anom, 0.9 Conf): {res2}")
-
-    # Scenario 3: Critical Vulnerability on Critical Infrastructure
-    # Port 445 (SMB) has 1.7x multiplier in evaluate_device
-    # Asset 'industrial' has 1.4x multiplier
-    ports = [{"port": 445, "cves": [{"id": "CVE-TEST", "cvss": 7.0}]}]
-    res3 = engine.evaluate_device(open_ports=ports, anomalies=[], asset_type='industrial')
-    print(f"Scenario 3 (Industrial, SMB CVE 7.0): {res3['risk_score']} ({res3['status']})")
-
-    # Scenario 4: High Anomaly but Low ML Confidence
-    # Should result in a lower risk than high confidence
-    res4_high = engine.calculate_device_risk(cvss_score=0, anomaly_score=0.8, asset_type='iot', anomaly_confidence=1.0)
-    res4_low = engine.calculate_device_risk(cvss_score=0, anomaly_score=0.8, asset_type='iot', anomaly_confidence=0.3)
-    print(f"Scenario 4 (High Conf): {res4_high['risk_score']} vs (Low Conf): {res4_low['risk_score']}")
+    # Scenario 2: Industrial asset type weights anomaly more (uses same stored state)
+    ip2 = "192.168.1.11"
+    upsert_device(
+        {
+            "ip": ip2,
+            "mac": "00:00:00:00:00:01",
+            "vendor": "Test",
+            "risk_score": 0.0,
+            "status": "Safe",
+            "open_ports": [{"port": 502, "service": "modbus", "cves": []}],
+            "total_cves": 0,
+            "asset_type": "industrial",
+            "priority": 1,
+            "risk_breakdown": {"vuln": 0.0, "anomaly": 0.0},
+        }
+    )
+    save_risk_history(ip2, 10.0, 5.0, 5.0)
+    res2 = engine.calculate_risk(ip2)
+    print(f"Scenario 2 (Industrial, Modbus): {res2}")
 
 if __name__ == "__main__":
     test_new_risk_engine()

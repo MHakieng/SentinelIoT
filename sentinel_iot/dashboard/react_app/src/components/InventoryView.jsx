@@ -28,7 +28,6 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             </div>
             <div className="widget-value">{highRiskCount}</div>
             <div className="widget-label">Kritik Riskli Cihaz</div>
-            <div className="status-note">Risk skoru 70 ve üzeri cihazlar</div>
           </div>
 
           <div className="widget-card">
@@ -37,7 +36,6 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             </div>
             <div className="widget-value">{totalDevices}</div>
             <div className="widget-label">Aktif Host / Cihaz</div>
-            <div className="status-note">Kalıcı envanter kaydı</div>
           </div>
 
           <div className="widget-card">
@@ -46,7 +44,6 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             </div>
             <div className="widget-value">{openPortsAvg}</div>
             <div className="widget-label">Ort. Açık Servis</div>
-            <div className="status-note">Son tarama servis görünürlüğü</div>
           </div>
 
           <div className="widget-card">
@@ -55,7 +52,6 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             </div>
             <div className="widget-value">{totalDevices - highRiskCount}</div>
             <div className="widget-label">İzlenen Normal Cihazlar</div>
-            <div className="status-note">Yüksek risk eşiğinin altında</div>
           </div>
 
         </div>
@@ -94,9 +90,6 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
         <div className="section-header mb-2">
           <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Cihaz Envanteri</h3>
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{devices.length} cihaz</span>
-        </div>
-        <div className="section-subtitle">
-          Keşfedilen cihazları, mevcut risk seviyelerini ve her ana makinede açık olan servisleri inceleyin.
         </div>
       </div>
 
@@ -150,12 +143,6 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
               const vendorLabel = device.vendor && device.vendor !== 'Unknown' ? device.vendor : 'Tanımlanamayan cihaz'
               const riskScore = Number(device.risk_score || 0)
               const statusTone = device.status === 'High Risk' ? 'badge-danger' : device.status === 'Medium Risk' ? 'badge-warning' : 'badge-success'
-              const statusNote = device.status === 'High Risk'
-                ? 'Öncelikli olarak incelenmeli'
-                : device.status === 'Medium Risk'
-                  ? 'Daha yüksek riskli cihazlardan sonra izlenmeli'
-                  : 'Acil işlem gerektirmiyor'
-
               return (
                 <tr
                   key={device.ip || idx}
@@ -195,7 +182,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
                           ))}
                         </div>
                       ) : (
-                        <div className="table-secondary">Henüz servis parmak izi kaydedilmedi.</div>
+                        <div className="table-secondary">Servis yok</div>
                       )}
                     </div>
                   </td>
@@ -222,10 +209,6 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
                     <span className={`badge ${statusTone}`}>
                       {translateRiskStatus(device.status)}
                     </span>
-                    <div className="table-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
-                      {device.status === 'High Risk' ? <ShieldAlert size={12} color="var(--danger)" /> : <ShieldCheck size={12} color={device.status === 'Medium Risk' ? 'var(--warning)' : 'var(--success)'} />}
-                      {statusNote}
-                    </div>
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <ChevronRight size={18} color="var(--text-secondary)" />
@@ -239,7 +222,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
                   <div className="empty-state">
                     <HardDrive className="empty-state-icon" />
                     <div className="empty-state-title">Envanter Boş</div>
-                    <div className="empty-state-copy">Henüz hiçbir cihaz kaydedilmedi. Envanteri doldurmak için ağ taraması başlatın.</div>
+                    <div className="empty-state-copy">Ağ taraması başlatın.</div>
                   </div>
                 </td>
               </tr>

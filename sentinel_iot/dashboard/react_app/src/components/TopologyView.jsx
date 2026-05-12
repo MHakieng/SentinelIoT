@@ -155,9 +155,6 @@ const TopologyView = ({
             <h3 className="topology-title">
               <Share2 size={18} /> Ağ Topolojisi
             </h3>
-            <div className="section-subtitle">
-              Tarama hedefini belirleyin, canlı akışları izleyin ve riskli düğümleri grafikte önceliklendirin.
-            </div>
           </div>
 
           <div className="topology-header-side">
@@ -253,7 +250,7 @@ const TopologyView = ({
               <div className="empty-state topology-fill">
                 <Share2 className="empty-state-icon" />
                 <div className="empty-state-title">Ağ Haritası Boş</div>
-                <div className="empty-state-copy">Bir hedef girip tarama başlatın veya otomatik ağ keşfini kullanın.</div>
+                <div className="empty-state-copy">Tarama başlatın.</div>
               </div>
             ) : (
               <ForceGraph2D
@@ -344,7 +341,7 @@ const TopologyView = ({
                   </div>
                 </div>
               ) : (
-                <div className="section-subtitle">Detay için grafikte bir düğümün üzerine gelin.</div>
+                <div className="section-subtitle">Düğüm seçin.</div>
               )}
             </div>
 
@@ -368,7 +365,7 @@ const TopologyView = ({
                     </div>
                   </div>
                 )) : (
-                  <div className="section-subtitle">Canlı izleme açıldığında akışlar burada sıralanır.</div>
+                  <div className="section-subtitle">Canlı akış yok.</div>
                 )}
               </div>
             </div>

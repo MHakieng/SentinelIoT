@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Loader2, RefreshCcw, Shield, Sparkles, X } from 'lucide-react'
+import { Loader2, RefreshCcw, Shield, Sparkles, X } from 'lucide-react'
 import { fetchDeviceAnalysis, peekDeviceAnalysis } from '../lib/deviceAnalysisClient'
 import { DEVICE_ANALYSIS_VIEWS, describeLlmUiFailure } from '../lib/llmUiContent'
 import { translateRiskStatus } from '../lib/uiText'
@@ -77,7 +77,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
     if (!device) {
       return (
         <div className="state-message assistant-panel-empty">
-          Güvenlik Asistanını kullanmak için önce Envanter veya Topoloji görünümünden bir cihaz seçin. Bu panel şu anda yalnızca cihaza özel analizi destekler.
+          Cihaz seçin.
         </div>
       )
     }
@@ -86,7 +86,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
       return (
         <div className="state-message state-message-compact assistant-panel-state">
           <Loader2 size={16} className="spin" style={{ marginRight: '8px' }} />
-          Seçili güvenlik eylemi için cihaz analizi yükleniyor...
+          Analiz yükleniyor...
         </div>
       )
     }
@@ -179,9 +179,6 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
           <div>
             <div className="assistant-panel-kicker">Güvenlik Asistanı</div>
             <h3 className="assistant-panel-title">Yalnızca cihaza özel analiz</h3>
-            <div className="section-subtitle" style={{ marginTop: '6px' }}>
-              {device ? `Seçili cihaz: ${device.ip}` : 'Doğrulanmış YZ akışlarını kullanmak için bir cihaz seçin.'}
-            </div>
           </div>
           <button className="assistant-close" onClick={onClose} aria-label="Güvenlik Asistanını kapat">
             <X size={18} />
@@ -208,8 +205,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
 
         <div className="assistant-toolbar">
           <div className="assistant-toolbar-note">
-            <Sparkles size={14} color="var(--accent-primary)" />
-            Risk açıklaması, anomali bağlamı ve sonraki adımlar için hızlı cihaz görünümü.
+            {device ? device.ip : 'Cihaz seçin'}
           </div>
           <button
             className="btn"
@@ -222,24 +218,8 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
           </button>
         </div>
 
-        {device && (
-          <div className="assistant-scope-note">
-            <span className="badge badge-neutral">Hızlı görünüm</span>
-            <span>
-              Tam risk geçmişi, kanıtlar ve CVE odaklı takip için cihaz sayfasını kullanın. Bu panel doğrulanmış cihaza özel analiz akışıyla sınırlı kalır.
-            </span>
-          </div>
-        )}
-
         <div className="assistant-panel-content">
           {renderBody()}
-        </div>
-
-        <div className="assistant-panel-footer">
-          <div className="status-note">
-            <AlertTriangle size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-            Serbest metin sohbet, CVE-öncelikli akışlar ve konuşma hafızası bu panelin bilinçli olarak kapsamı dışındadır.
-          </div>
         </div>
       </aside>
     </div>

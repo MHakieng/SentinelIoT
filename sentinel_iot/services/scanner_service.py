@@ -3,10 +3,10 @@ import threading
 import time
 from typing import Any, Dict
 
-from sentinel_iot.core.risk_engine import RiskEngine
 from sentinel_iot.database.db import save_risk_history, save_scan_history, upsert_device
 from sentinel_iot.scanner.network_scan import scan
 from sentinel_iot.scanner.vulnerability_scan import scan_device
+from sentinel_iot.services.context_risk_engine import ContextualRiskEngine
 from sentinel_iot.services.job_manager import JobManager
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class ScannerService:
     """Service for managing network discovery and vulnerability scans."""
 
-    def __init__(self, risk_engine: RiskEngine, job_manager: JobManager):
+    def __init__(self, risk_engine: ContextualRiskEngine, job_manager: JobManager):
         self.risk_engine = risk_engine
         self.job_manager = job_manager
         self.scan_lock = threading.Lock()
@@ -148,7 +148,23 @@ class ScannerService:
                     logger.info("Scanning device %s (%s/%s) with profile '%s'", ip, index + 1, total, profile)
                     try:
                         scan_data = scan_device(ip, profile=profile) or []
-                        risk = self.risk_engine.evaluate_device(scan_data, [], asset_type="iot")
+                        # Persist device first so contextual engine can read latest open_ports / asset_type.
+                        device_seed = {
+                            "ip": ip,
+                            "mac": discovered_device.get("mac", "Unknown"),
+                            "vendor": discovered_device.get("vendor", "Unknown"),
+                            "risk_score": 0.0,
+                            "status": "Safe",
+                            "open_ports": scan_data,
+                            "total_cves": sum(len(p.get("cves") or []) for p in scan_data if isinstance(p, dict)),
+                            "asset_type": "iot",
+                            "priority": 1,
+                            "risk_breakdown": {"vuln": 0.0, "anomaly": 0.0},
+                        }
+                        devices_db[ip] = device_seed
+                        upsert_device(device_seed)
+
+                        risk = self.risk_engine.calculate_risk(ip)
 
                         device_data = {
                             "ip": ip,
@@ -157,12 +173,12 @@ class ScannerService:
                             "risk_score": risk["risk_score"],
                             "status": risk["status"],
                             "open_ports": scan_data,
-                            "total_cves": risk.get("total_cves", risk.get("context_factors", {}).get("total_cves", 0)),
+                            "total_cves": risk.get("total_cves", 0),
                             "asset_type": "iot",
                             "priority": 1,
                             "risk_breakdown": {
-                                "vuln": risk["vuln_component"],
-                                "anomaly": risk["anomaly_component"],
+                                "vuln": risk.get("vuln_component", 0.0),
+                                "anomaly": risk.get("anomaly_component", 0.0),
                             },
                         }
 

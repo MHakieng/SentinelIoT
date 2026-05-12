@@ -46,7 +46,6 @@ const SecurityEventTimeline = ({ events = [], loading = false, error = null }) =
       <div className="empty-state command-timeline-empty">
         <Activity className="empty-state-icon" />
         <div className="empty-state-title">Olay kaydı yok</div>
-        <div className="empty-state-copy">Tarama, anomali, risk artışı veya YZ analizi üretildiğinde burada görünür.</div>
       </div>
     ) : (
       events.map((event) => {
@@ -64,12 +63,10 @@ const SecurityEventTimeline = ({ events = [], loading = false, error = null }) =
                 <strong>{event.title}</strong>
                 <span className={`event-severity event-severity-${severity}`}>{severityLabel[severity] || severity}</span>
               </div>
-              <p>{event.description}</p>
               <div className="command-timeline-meta">
                 <span>{formatTimelineTime(event.timestamp)}</span>
                 <span>{meta.label}</span>
                 {event.device_ip && <span>{event.device_ip}</span>}
-                <span>source: {event.source}</span>
               </div>
             </div>
           </article>

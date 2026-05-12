@@ -23,11 +23,11 @@ Bu dosya dokumantasyondaki algoritmik ifadeler ile kodda gorulen gercek davranis
 | Contextual analysis | Acik port sayisi/servis kritikligi kullanilir | `evaluate_device()` acik port sayisi, kritik port multipliers, CVE count, anomaly confidence ve asset type kullaniyor. | Low | Uyumlu. |
 | Plaintext heuristic | Plaintext/protocol heuristic | `MonitorService._parse_packets_for_ui()` Raw payload ilk 50 ascii karakteri UI bilgisi olarak gosteriyor; risk veya detection heuristic olarak kullanilmiyor. | Medium | "Plaintext heuristic detection" iddiasi varsa kaldirilmali; "packet preview" denmeli. |
 | Promiscuous mode | Tum trafiği yakalar | Scapy `sniff` var ama explicit promiscuous mode veya switch mirroring garantisi yok. | High | "Tüm ağ trafiği" iddiasindan kacinin; switched/Wi-Fi sinirlarini yazin. |
-| Metrics endpoint | Gercek dunya metrikleri | `MLService.get_metrics()` `true_positives=10`, `false_positives=2`, `system_uptime=99.9%` gibi statik alanlar donduruyor. | Critical | Bu alanlar "real_world_metrics" olarak sunulmamali; demo placeholder veya kaldirilmali. |
+| Metrics endpoint | Runtime metrik durumu | `MLService.get_metrics()` artik statik `real_world_metrics` dondurmuyor; etiketli canli olay olmadigi icin `runtime_detection_metrics: null` ve `source: not_available` metadata donduruyor. | Low | Bu ayrim korunmali; TP/FP/F1 canli sistem basarisi gibi uretilmis gosterilmemeli. |
 
 ## En Riskli Algoritmik Bulgular
 
-1. `/metrics` icindeki statik "real_world_metrics" alanlari gercek metrik gibi algilanabilir.
-2. CVE ID extraction ile CVSS skorlama ayni sey gibi anlatilmamali.
-3. Scanner string CVE listesi ile RiskEngine dict-CVE CVSS path'i arasinda sema farki var; fallback 7.0 her scan sonucunda beklendigi gibi calismayabilir, dogrulanmali.
-4. Packet capture icin "tum trafik" veya "real-time protection" iddialari teknik olarak fazla genis olur.
+1. CVE ID extraction ile CVSS skorlama ayni sey gibi anlatilmamali.
+2. Scanner string CVE listesi ile RiskEngine dict-CVE CVSS path'i arasinda sema farki var; fallback 7.0 her scan sonucunda beklendigi gibi calismayabilir, dogrulanmali.
+3. Packet capture icin "tum trafik" veya "real-time protection" iddialari teknik olarak fazla genis olur.
+4. `/metrics` icindeki onceki statik `real_world_metrics` riski giderildi; bu ayrim dokuman ve UI'da korunmali.

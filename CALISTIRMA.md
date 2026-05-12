@@ -21,6 +21,20 @@ Bu komut iki PowerShell penceresi acar:
 - API: `http://127.0.0.1:8000`
 - Dashboard: `http://127.0.0.1:5173`
 
+## Demo Akisi (v6 Command Center)
+
+Uygulamayi actiktan sonra savunmada kullanilabilecek tipik akıs:
+
+```text
+Command Center → Security Event Timeline → Device Detail / Analyst Investigation → AI Analysis → Validation
+```
+
+- Command Center uzerinden ag taramasini baslatin (scan job).
+- Timeline uzerinden scan/izleme olaylarini takip edin.
+- Bir cihaz secip Device Detail ekraninda servis kanitlarini, risk breakdown'ini, risk gecmisini ve anomali loglarini inceleyin.
+- Opsiyonelse AI Analysis ile (yalnizca mevcut baglam uzerinden) aciklama ve sonraki adim onerilerini alin.
+- Validation ekraninda Synthetic Model Validation ile Runtime Detection ayrimini gosterin; canli agda etiket olmadigi icin runtime TP/FP/F1 uretilmedigini `not_available` aciklamasi ile belirtin.
+
 ## LLM API key ayari
 
 API key'i koda yazmayin. Proje kokunde `.env` dosyasi olusturun:

@@ -53,3 +53,10 @@ class RiskHistory(Base):
     risk_score = Column(Float)
     vuln_component = Column(Float)
     anomaly_component = Column(Float)
+
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, index=True)
+    value = Column(JSON)

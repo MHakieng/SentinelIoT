@@ -44,10 +44,10 @@ Durum: Canli sistem 6 feature, N-BaIoT benchmark 115 feature kullanir. Bu ayrim 
 | Random split sonucu canli sistem basarisi gibi mi yazilmis? | README bunu offline benchmark olarak konumlandiriyor. Dashboard metni de ayrimi belirtiyor. | Low | "Model kapasitesi" dili korunmali. |
 | Attack/device+attack split konumu | `docs/model_validation_summary.md` ve dashboard genel olarak dogru konumlandiriyor. | Low | "Genelleme siniri" vurgusu artirilabilir. |
 | Feature leakage analizi | Leakage suspect feature belirtilmis, modelden feature silinmedigi acik. | Low | "Supheli" kelimesi korunmali; kesin leakage denmemeli. |
-| Isolation Forest vs supervised benchmark | README ve docs ayiriyor; ancak dashboard metrics endpoint runtime metrikleriyle karisabilir. | Medium | UI'da offline benchmark ile runtime model metrikleri basliklarda ayrilmali. |
+| Isolation Forest vs supervised benchmark | README, docs ve dashboard runtime metrikleri ile offline benchmark'i ayiriyor. | Low | Bu ayrim korunmali; N-BaIoT sonucu canli sistem basarisi gibi anlatilmamali. |
 | Runtime model artefakti | `.joblib` GitHub'dan cikarildi. Yeni kurulumda model yoksa runtime anomaly normal doner veya egitim gerekir. | Medium | README'ye "runtime model dosyasi repo disidir; yeniden egitim gerekir" notu eklenebilir. |
-| `MLService.get_metrics()` | Statik `real_world_metrics` donduruyor. | Critical | Canli basari metrikleri gibi sunulmamalı; "demo placeholder" olarak degistirilmeli veya kaldirilmali. |
+| `MLService.get_metrics()` | Statik `real_world_metrics` dondurmuyor; `runtime_detection_metrics: null` ve `source: not_available` metadata donduruyor. | Low | Etiketli canli olay olmadan TP/FP/F1 uretilmedigi anlatilmaya devam edilmeli. |
 
 ## Sonuc
 
-ML dogrulama katmani akademik olarak savunulabilir; cunku random split sonucuyla yetinilmemis, attack split, device+attack split ve feature leakage analizi yapilmis. Ancak canli runtime metrikleri ve offline benchmark ayni "dogrulama" ekraninda bulundugu icin sunumda ayrim cok net anlatilmali.
+ML dogrulama katmani akademik olarak savunulabilir; cunku random split sonucuyla yetinilmemis, attack split, device+attack split ve feature leakage analizi yapilmis. Canli runtime metrikleri ve offline benchmark ayni "dogrulama" alaninda gosterilse de mevcut UI bunlari ayri bloklarda ve acik sinirlilik metniyle sunar.

@@ -3,15 +3,24 @@
 import os
 import time
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from sentinel_iot.database.models import Base, Device, ScanHistory, AnomalyLog, RiskHistory, utc_now
+from sentinel_iot.database.models import Base, Device, ScanHistory, AnomalyLog, RiskHistory, SystemSettings, utc_now
 
 logger = logging.getLogger(__name__)
 
 # SQLite file in the project root (relative to sentinel_iot)
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sentinel_iot.db")
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False, connect_args={"check_same_thread": False})
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.close()
+
 SessionLocal = sessionmaker(bind=engine)
 
 
@@ -213,5 +222,36 @@ def get_device_anomaly_logs(device_ip: str) -> list:
             }
             for l in logs
         ]
+    finally:
+        session.close()
+
+
+def get_setting(key: str, default_value: dict = None):
+    """Retrieve a setting from SystemSettings."""
+    session = SessionLocal()
+    try:
+        setting = session.query(SystemSettings).filter(SystemSettings.key == key).first()
+        if setting:
+            return setting.value
+        return default_value
+    finally:
+        session.close()
+
+
+def set_setting(key: str, value: dict):
+    """Update or create a setting in SystemSettings."""
+    session = SessionLocal()
+    try:
+        setting = session.query(SystemSettings).filter(SystemSettings.key == key).first()
+        if setting:
+            setting.value = value
+        else:
+            setting = SystemSettings(key=key, value=value)
+            session.add(setting)
+        return _commit_with_retry(session, "set_setting")
+    except Exception as e:
+        session.rollback()
+        logger.error("DB set_setting error for %s: %s", key, e, exc_info=True)
+        return False
     finally:
         session.close()

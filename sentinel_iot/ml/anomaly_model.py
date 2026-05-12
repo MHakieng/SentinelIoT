@@ -8,6 +8,7 @@ import os
 import threading
 from pathlib import Path
 from sentinel_iot.ml.feature_schema import FEATURE_SCHEMA, validate_features
+from sentinel_iot.ml.ciciot2023_inference import predict_flow_anomaly
 
 class AnomalyModel:
     """Anomaly detection model for IoT traffic using Isolation Forest with performance metrics."""
@@ -17,9 +18,10 @@ class AnomalyModel:
         self.features = FEATURE_SCHEMA
         self.model = None
         self.scaler = StandardScaler()
-        self.threshold = 0.5  # Anomali eşiği (0.0 - 1.0 aralığında)
+        self.threshold = 0.6  # Anomali eşiği artırıldı (Canlı trafiğe tolerans)
         self.retrain_threshold = 100  # Yeniden eğitim için gereken yeni veri sayısı
         self.retrain_buffer = []  # Yeni gelen veriler için buffer
+        self.prefer_ciciot_rf = True
         self.metrics_lock = threading.Lock()
         self.metrics = {
             "f1_score": 0,
@@ -31,17 +33,37 @@ class AnomalyModel:
         self.load_model()
 
     def load_model(self):
-        """Load the model and scaler from disk if they exist."""
+        """Load the model and scaler from disk if they exist.
+        
+        Feature uyumluluk kontrolü: Kayıtlı scaler'ın beklediği feature sayısı
+        mevcut FEATURE_SCHEMA ile uyuşmuyorsa eski model atılır.
+        """
         if os.path.exists(self.model_path):
             try:
                 data = joblib.load(self.model_path)
                 if isinstance(data, dict):
-                    self.model = data.get("model")
-                    self.scaler = data.get("scaler", StandardScaler())
+                    loaded_model = data.get("model")
+                    loaded_scaler = data.get("scaler", StandardScaler())
+
+                    # Feature sayısı uyumluluk kontrolü
+                    expected_n = len(self.features)
+                    scaler_n = getattr(loaded_scaler, 'n_features_in_', None)
+                    if scaler_n is not None and scaler_n != expected_n:
+                        print(
+                            f"[!] Kaydedilmiş model {scaler_n} feature bekliyor, "
+                            f"ancak mevcut FEATURE_SCHEMA {expected_n} feature içeriyor. "
+                            f"Eski model atıldı — yeniden eğitim gerekiyor."
+                        )
+                        self.model = None
+                        self.scaler = StandardScaler()
+                        return None
+
+                    self.model = loaded_model
+                    self.scaler = loaded_scaler
                     with self.metrics_lock:
                         self.metrics = data.get("metrics", self.metrics)
                 else:
-                    self.model = data # Fallback for old style
+                    self.model = data  # Fallback for old style
                 return self.model
             except Exception as e:
                 print(f"[-] Error loading model: {e}")
@@ -53,10 +75,11 @@ class AnomalyModel:
         validate_features([model_features], source="anomaly_model.model_features")
         return model_features
 
-    def train(self, flow_data):
+    def train(self, flow_data, freeze_scaler=False):
         """Deterministic eğitim hattı."""
         if not flow_data:
             return
+        self.prefer_ciciot_rf = False
         
         # 1. FEATURE_SCHEMA ile doğrula
         validate_features(flow_data, source="anomaly_model.train")
@@ -86,12 +109,18 @@ class AnomalyModel:
         print(f"[*] Normalizing and training model on {len(X)} samples...")
         
         # 6. Normalizasyon (StandardScaler)
-        self.scaler = StandardScaler() # Re-initialize scaler for fresh fit
-        X_scaled = self.scaler.fit_transform(X)
+        # Eger scaler dondurulduysa (freeze_scaler) ve onceden fit edildiyse, sadece transform yap
+        is_fitted = hasattr(self.scaler, 'mean_') and self.scaler.mean_ is not None
+        if freeze_scaler and is_fitted:
+            X_scaled = self.scaler.transform(X)
+            print("[*] Scaler frozen, applying existing scaling parameters.")
+        else:
+            self.scaler = StandardScaler() # Re-initialize scaler for fresh fit
+            X_scaled = self.scaler.fit_transform(X)
+            print("[*] Scaler re-initialized and fitted on new data.")
         
-        # 7. Random state sabitle (deterministic)
         np.random.seed(42)
-        self.model = IsolationForest(contamination=0.05, random_state=42)
+        self.model = IsolationForest(contamination="auto", random_state=42)
         self.model.fit(X_scaled)
         
         # 8. Eğitim metriklerini hesapla
@@ -142,10 +171,13 @@ class AnomalyModel:
         anomaly_scores = -scores
         
         # Calculate outside the lock to avoid hanging /metrics API
+        # AP requires a binary representation where Anomaly is the positive class (1).
+        y_true_binary = np.where(labels == 1, 1, 0)
+        
         p = round(float(precision_score(y_true, y_pred, pos_label=-1, zero_division=0)), 3)
         r = round(float(recall_score(y_true, y_pred, pos_label=-1, zero_division=0)), 3)
         f1 = round(float(f1_score(y_true, y_pred, pos_label=-1, zero_division=0)), 3)
-        ap = round(float(average_precision_score(y_true, anomaly_scores)), 3)
+        ap = round(float(average_precision_score(y_true_binary, anomaly_scores)), 3)
 
         with self.metrics_lock:
             self.metrics["precision"] = p
@@ -163,32 +195,52 @@ class AnomalyModel:
         if not new_flow_data:
             return
 
-        self.retrain_buffer.extend(new_flow_data)
+        # Filter: Do not include obvious/critical anomalies in the retraining buffer.
+        # This prevents an active flood/botnet attack from poisoning the model.
+        safe_data = []
+        for flow in new_flow_data:
+            res = self.detect_anomaly(flow)
+            # Modelin canlı trafiğe adapte olabilmesi için başlangıçta esnek bir eşik (0.65) kullanıyoruz.
+            # Aksi halde tüm canlı trafik anomali sanılıp reddedilir ve model asla öğrenemez.
+            if res["score"] < 0.65:
+                safe_data.append(flow)
+
+        self.retrain_buffer.extend(safe_data)
         
         # EĞER buffer boyutu >= retrain_threshold ise
         if len(self.retrain_buffer) >= self.retrain_threshold:
             print(f"[*] Retrain threshold met ({len(self.retrain_buffer)} >= {self.retrain_threshold}). Starting batch retraining...")
             
-            # 1. Mevcut veri setini yükle (N veriyi almak için)
-            all_data = []
+            # 1. Mevcut (baseline) veri setini yükle
+            baseline_data = []
             if os.path.exists('iot_traffic_dataset.csv'):
                 try:
-                    all_data = pd.read_csv('iot_traffic_dataset.csv').to_dict('records')
-                except:
-                    all_data = []
+                    baseline_data = pd.read_csv('iot_traffic_dataset.csv').to_dict('records')
+                except Exception as e:
+                    print(f"[-] Error loading baseline: {e}")
+                    baseline_data = []
             
-            # 2. Yeni veriyi ekle
-            all_data.extend(self.retrain_buffer)
+            # 2. Model zehirlenmesini önlemek için baseline oranını koru (örn: %80 baseline, %20 yeni veri)
+            import random
+            max_new_samples = int(n_samples_window * 0.20)
+            recent_new_data = self.retrain_buffer[-max_new_samples:]
             
-            # 3. Son N veriyi al
-            training_window = all_data[-n_samples_window:]
+            required_baseline = n_samples_window - len(recent_new_data)
+            if len(baseline_data) > required_baseline:
+                # Rastgele örneklem alarak baseline veri setinin genel karakteristiğini koru
+                sampled_baseline = random.sample(baseline_data, required_baseline)
+            else:
+                sampled_baseline = baseline_data
+            
+            # 3. Yeni eğitim penceresini oluştur (Baseline ağırlıklı)
+            training_window = sampled_baseline + recent_new_data
             
             # 4. Modeli yeniden eğit (Batch Retraining)
-            self.train(training_window)
+            self.train(training_window, freeze_scaler=True)
             
             # 5. Buffer sıfırla
             self.retrain_buffer = []
-            print("[+] Batch retraining complete. Buffer reset.")
+            print("[+] Batch retraining complete. Baseline integrity preserved. Buffer reset.")
 
     @staticmethod
     def normalize_anomaly_score(raw_score):
@@ -210,11 +262,38 @@ class AnomalyModel:
         Returns:
             dict: {"label": "anomaly"|"normal", "score": float, "confidence": float}
         """
+        rf_result = None
+        if self.prefer_ciciot_rf:
+            try:
+                rf_result = predict_flow_anomaly(flow_features)
+                if rf_result.get("model_available"):
+                    attack_probability = float(rf_result.get("attack_probability") or 0.0)
+                    return {
+                        "label": "anomaly" if rf_result.get("is_anomaly") else "normal",
+                        "score": attack_probability,
+                        "raw_score": attack_probability,
+                        "confidence": attack_probability,
+                        "model": rf_result,
+                    }
+            except Exception as e:
+                print(f"[-] CICIoT2023 RF inference unavailable for this flow: {e}")
+
+            if rf_result and rf_result.get("model_available") is False:
+                missing_legacy_features = [feature for feature in self.features if feature not in flow_features]
+                if missing_legacy_features:
+                    return {
+                        "label": "normal",
+                        "score": 0.0,
+                        "raw_score": 0.0,
+                        "confidence": 0.0,
+                        "model": rf_result,
+                    }
+
         # 1. Feature sözleşmesini doğrula
         model_features = self._select_model_features(flow_features)
         
         if self.model is None:
-            return {"label": "normal", "score": 0.0}
+            return {"label": "normal", "score": 0.0, "raw_score": 0.0, "confidence": 0.0}
             
         # 2. DataFrame'e çevir ve temizle
         df = pd.DataFrame([model_features])
@@ -225,7 +304,7 @@ class AnomalyModel:
             X_scaled = self.scaler.transform(X)
         except Exception as e:
             print(f"[-] Inference scaling error: {e}")
-            return {"label": "normal", "score": 0.0}
+            return {"label": "normal", "score": 0.0, "raw_score": 0.0, "confidence": 0.0}
             
         # 4. Model ile skor hesapla
         raw_score = self.model.decision_function(X_scaled)[0]
@@ -241,7 +320,7 @@ class AnomalyModel:
         # 7. Eşik ile karşılaştır ve etiket üret
         label = "anomaly" if anomaly_score >= self.threshold else "normal"
         
-        return {"label": label, "score": anomaly_score, "confidence": confidence}
+        return {"label": label, "score": anomaly_score, "raw_score": float(raw_score), "confidence": confidence}
 
     def detect(self, flow_data):
         """Analyze a list of flow features for anomalies."""
@@ -259,6 +338,7 @@ class AnomalyModel:
                     'type': 'statistical_anomaly',
                     'score': analysis["score"],
                     'confidence': analysis["confidence"],
+                    'model': analysis.get("model"),
                     'reasons': [f"Statistical anomaly (Score: {analysis['score']}, Conf: {analysis['confidence']})"],
                     'metrics': self.metrics
                 })
@@ -266,13 +346,27 @@ class AnomalyModel:
         return results
 
 if __name__ == "__main__":
-    # Test data with new IAT features (normal IoT vs Botnet flood)
+    # Test data with all 17 features (normal IoT vs Botnet flood)
+    _base_normal = {
+        'tcp_syn_ratio': 0.05, 'tcp_synack_ratio': 0.05,
+        'unique_dst_ip_count': 1, 'unique_dst_port_count': 1, 'rst_syn_ratio': 0.0,
+        'dns_query_response_ratio': 0.0, 'unique_domain_count': 0,
+        'pkt_size_variance': 200.0, 'bytes_per_second': 1000.0,
+        'small_pkt_ratio': 0.5, 'large_pkt_ratio': 0.0,
+    }
+    _base_anomaly = {
+        'tcp_syn_ratio': 0.9, 'tcp_synack_ratio': 0.0,
+        'unique_dst_ip_count': 1, 'unique_dst_port_count': 1, 'rst_syn_ratio': 0.0,
+        'dns_query_response_ratio': 0.0, 'unique_domain_count': 0,
+        'pkt_size_variance': 10.0, 'bytes_per_second': 10000000.0,
+        'small_pkt_ratio': 0.8, 'large_pkt_ratio': 0.0,
+    }
     test_data = [
-        {'packet_count': 10, 'byte_count': 1000, 'duration': 1.0, 'avg_packet_size': 100, 'mean_iat': 0.1, 'var_iat': 0.002, 'dst_ip': '1.1.1.1'},
-        {'packet_count': 12, 'byte_count': 1100, 'duration': 1.1, 'avg_packet_size': 91, 'mean_iat': 0.11, 'var_iat': 0.003, 'dst_ip': '1.1.1.1'},
-        {'packet_count': 8, 'byte_count': 900, 'duration': 0.9, 'avg_packet_size': 112, 'mean_iat': 0.09, 'var_iat': 0.001, 'dst_ip': '1.1.1.1'},
+        {'packet_count': 10, 'byte_count': 1000, 'duration': 1.0, 'avg_packet_size': 100, 'mean_iat': 0.1, 'var_iat': 0.002, 'dst_ip': '1.1.1.1', **_base_normal},
+        {'packet_count': 12, 'byte_count': 1100, 'duration': 1.1, 'avg_packet_size': 91, 'mean_iat': 0.11, 'var_iat': 0.003, 'dst_ip': '1.1.1.1', **_base_normal},
+        {'packet_count': 8, 'byte_count': 900, 'duration': 0.9, 'avg_packet_size': 112, 'mean_iat': 0.09, 'var_iat': 0.001, 'dst_ip': '1.1.1.1', **_base_normal},
         # Flood / Botnet anomaly (extremely low variance, high count)
-        {'packet_count': 5000, 'byte_count': 1000000, 'duration': 0.1, 'avg_packet_size': 200, 'mean_iat': 0.00002, 'var_iat': 0.0, 'dst_ip': '9.9.9.9'}
+        {'packet_count': 5000, 'byte_count': 1000000, 'duration': 0.1, 'avg_packet_size': 200, 'mean_iat': 0.00002, 'var_iat': 0.0, 'dst_ip': '9.9.9.9', **_base_anomaly}
     ]
     model = AnomalyModel()
     model.train(test_data)

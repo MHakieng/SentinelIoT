@@ -46,6 +46,7 @@ const AnomalyView = ({
   monitoringActive = false,
   monitorStatus = 'idle',
   monitorMessage = null,
+  monitorSummary = null,
   monitorActionLoading = false,
   monitorError = null,
   onToggleMonitoring
@@ -102,8 +103,8 @@ const AnomalyView = ({
       ? 'Yakalama çalışıyor'
       : 'Başlatmaya hazır'
   const monitorBody = monitorError
-    ? 'Canlı izleme şu anda kullanılamıyor. Backend sorununu giderip tekrar deneyin.'
-    : monitorMessage || 'Paket etkinliğini izlemek ve davranışsal trafik eğilimlerini yenilemek için canlı izlemeyi kullanın.'
+    ? 'Canlı izleme kullanılamıyor.'
+    : monitorMessage || ''
   const monitorButtonLabel = monitorActionLoading
     ? 'Güncelleniyor...'
     : monitorStatus === 'stopping'
@@ -112,15 +113,16 @@ const AnomalyView = ({
         ? 'İzlemeyi Durdur'
         : 'İzlemeyi Başlat'
 
+  const totalFlowsSeen = Number(monitorSummary?.total_flows_seen || 0)
+  const flowsTracked = Number(monitorSummary?.flows_tracked || 0)
+  const flowBufferLimit = Number(monitorSummary?.flow_buffer_limit || 500)
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px' }}>
       <div className="card" style={{ gridColumn: '1 / -1', padding: '20px' }}>
         <div className="section-header" style={{ marginBottom: '16px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>İzleme Görünümü</h3>
-            <div className="section-subtitle" style={{ marginTop: '6px' }}>
-              Canlı yakalamayı başlatın veya durdurun, mevcut uyarıları gözden geçirin ve model kalitesini bu görünümden ayrılmadan kontrol edin.
-            </div>
           </div>
         </div>
         <div className="anomaly-summary-grid">
@@ -129,14 +131,31 @@ const AnomalyView = ({
             <div style={{ fontSize: '1.12rem', fontWeight: '700', margin: '10px 0 8px' }}>
               {monitorHeadline}
             </div>
-            <div style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              {monitorBody}
-            </div>
+            {monitorBody && (
+              <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                {monitorBody}
+              </div>
+            )}
             {monitorError && (
               <div style={{ marginTop: '12px', fontSize: '0.78rem', color: 'var(--danger)' }}>
                 {monitorError}
               </div>
             )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginTop: '16px' }}>
+              <div>
+                <div className="metric-label">Toplam akis</div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, marginTop: '4px' }}>
+                  {totalFlowsSeen.toLocaleString('tr-TR')}
+                </div>
+              </div>
+              <div>
+                <div className="metric-label">Bellekteki akis</div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, marginTop: '4px' }}>
+                  {flowsTracked.toLocaleString('tr-TR')} / {flowBufferLimit.toLocaleString('tr-TR')}
+                </div>
+              </div>
+            </div>
 
             <button
               className="btn btn-primary"
@@ -164,9 +183,6 @@ const AnomalyView = ({
             <div style={{ marginTop: '6px', fontSize: '0.88rem', fontWeight: '600' }}>
               {anomalousDevices.length === 1 ? 'eşik üstünde cihaz' : 'eşik üstünde cihaz'}
             </div>
-            <div style={{ marginTop: '8px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              İzleme bileşeni {ANOMALY_ALERT_THRESHOLD}/100 veya üzerine çıktığında cihazlar burada görünür.
-            </div>
             <div className="anomaly-alert-list">
               {anomalousDevices.slice(0, 3).map((device) => (
                 <div key={device.ip} className="anomaly-alert-item">
@@ -179,7 +195,7 @@ const AnomalyView = ({
               ))}
               {anomalousDevices.length === 0 && (
                 <div className="status-note" style={{ marginTop: '12px' }}>
-                  Şu anda acil izleme incelemesi gerektiren cihaz yok.
+                  Eşik üstü cihaz yok.
                 </div>
               )}
             </div>
@@ -221,7 +237,7 @@ const AnomalyView = ({
             </div>
             {!metricsLoading && metricValues.validation_status === 'unavailable' && (
               <div style={{ marginTop: '14px', fontSize: '0.78rem', color: 'var(--warning)' }}>
-                Bu model anlık görüntüsü için doğrulama etiketleri şu anda mevcut değil.
+                Doğrulama etiketi yok.
               </div>
             )}
             {metricsError && (
@@ -233,15 +249,12 @@ const AnomalyView = ({
         </div>
       </div>
 
-      <div className="card" style={{ height: '380px', padding: '20px' }}>
+      <div className="card" style={{ height: '380px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
         <div className="section-header" style={{ marginBottom: '14px' }}>
           <div>
             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
               <TrendingUp size={18} /> Trafik Eğilimi
             </h3>
-            <div className="section-subtitle" style={{ marginTop: '6px' }}>
-              İzleme hattı tarafından yakalanan son paket hacmi.
-            </div>
           </div>
         </div>
         {chartLoading ? (
@@ -251,7 +264,7 @@ const AnomalyView = ({
         ) : trafficHistory.length === 0 ? (
           <div className="state-message">Henüz trafik geçmişi kaydedilmedi.</div>
         ) : (
-          <ResponsiveContainer width="100%" height="85%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={0}>
             <AreaChart data={trafficHistory}>
               <defs>
                 <linearGradient id="colorPkts" x1="0" y1="0" x2="0" y2="1">
@@ -269,15 +282,12 @@ const AnomalyView = ({
         )}
       </div>
 
-      <div className="card" style={{ height: '380px', padding: '20px' }}>
+      <div className="card" style={{ height: '380px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
         <div className="section-header" style={{ marginBottom: '14px' }}>
           <div>
             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
               <Zap size={18} /> İzleme Puanları
             </h3>
-            <div className="section-subtitle" style={{ marginTop: '6px' }}>
-              Uyarı eşiğinin üzerindeki cihazlar burada önce gösterilir.
-            </div>
           </div>
         </div>
         {devices.length === 0 ? (
@@ -285,7 +295,7 @@ const AnomalyView = ({
         ) : anomalousDevices.length === 0 ? (
           <div className="state-message">Şu anda hiçbir cihaz izleme uyarı eşiğini aşmıyor.</div>
         ) : (
-          <ResponsiveContainer width="100%" height="85%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={0}>
             <BarChart data={anomalousDevices}>
               <XAxis dataKey="ip" stroke="var(--text-secondary)" fontSize={10} />
               <YAxis stroke="var(--text-secondary)" fontSize={12} domain={[0, 100]} />
@@ -300,9 +310,6 @@ const AnomalyView = ({
         <div className="section-header" style={{ marginBottom: '14px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.05rem' }}>İnceleme Kuyruğu</h3>
-            <div className="section-subtitle" style={{ marginTop: '6px' }}>
-              Şu anda en güçlü izleme sinyallerini üreten cihazlar.
-            </div>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -311,9 +318,6 @@ const AnomalyView = ({
               <AlertOctagon color="var(--danger)" />
               <div>
                 <div style={{ fontWeight: '600' }}>{device.ip}</div>
-                <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                  İzleme etkinliği mevcut inceleme eşiğinin üzerinde.
-                </div>
               </div>
               <div style={{ fontWeight: '700', color: 'var(--danger)', textAlign: 'right' }}>
                 {(device.risk_breakdown?.anomaly || 0).toFixed(1)}/100
@@ -335,9 +339,6 @@ const AnomalyView = ({
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', fontSize: '1rem', margin: 0 }}>
                 <Activity size={16} color="var(--danger)" /> Canlı Paket Önizlemesi
               </h3>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Aktif izleme sırasında gözlenen son paket örnekleri.
-              </div>
             </div>
             <button
               onClick={() => { setConsolePackets([]); seenPacketKeys.current.clear() }}

@@ -348,25 +348,36 @@ Risk engine testleri `sentinel_iot/tests/test_risk_engine.py` ve `evaluation/val
 
 ## 14. Dashboard
 
-React dashboard kullaniciya su ekranlari sunar:
+SentinelIoT v6 dashboard'u klasik bir "genel dashboard" yaklasimindan ziyade **SOC-style security operations cockpit** olarak kurgulanmistir. Ana anlatim/akış su sekildedir:
 
-- Envanter
-- Servis gorunurlugu
-- Izleme
-- Paket akisi
-- Canli akislar
-- Ag topolojisi
-- Dogrulama ve Ozet
-- Cihaz detaylari
-- Guvenlik asistani
+```text
+Command Center → Security Event Timeline → Device Detail / Analyst Investigation → AI Analysis → Validation
+```
 
-Onemli UI kararlar:
+### v6 Ana Ekranlar
 
-- Topoloji ekrani veri yokken empty state gosterir.
-- Scan loading/error state vardir.
-- Device detail secili cihaz yokken acilmaz.
-- N-BaIoT offline benchmark metrikleri runtime metrics ile karistirilmaz.
-- Runtime TP/FP/F1 metrikleri mevcut degilse `Runtime Metrics Status` empty state gosterilir.
+- **Command Center**: Topoloji ozetleri, scan/monitor durumlari, canli akis snapshot'lari ve metrik ozetlerini tek operasyon panelinde toplar.
+- **Security Event Timeline**: Scan job, monitor runtime ve cihaz kanitlarini "olay" olarak toplayip analist akisini hizlandirir.
+- **Device Detail / Analyst Investigation**: Secili cihazin servis kanitlari (port/banner/http title/tls/cve listesi), risk breakdown'i, risk gecmisi ve anomali loglarini tek sayfada analist odakli duzende sunar.
+- **AI Analysis (opsiyonel)**: Cihaza ozel "grounded" aciklama ve sonraki adim onerileri uretir; serbest sohbet veya karar verici mekanizma degildir.
+- **Validation**: Synthetic Model Validation ile Runtime Detection ayrimini tek ekranda ve durust sinirlarla gosterir.
+
+### Frontend v6 Yapisi (Okunabilirlik + Anlatim)
+
+Frontend icinde v6 anlatimini tasiyan ana yapilar:
+
+- `sentinel_iot/dashboard/react_app/src/components/command/CommandCenterView.jsx`
+- `sentinel_iot/dashboard/react_app/src/components/command/SecurityEventTimeline.jsx`
+- `sentinel_iot/dashboard/react_app/src/components/command/eventTimelineUtils.js`
+- `sentinel_iot/dashboard/react_app/src/components/DeviceDetailView.jsx` (analyst investigation layout)
+- `sentinel_iot/dashboard/react_app/src/components/MetricsView.jsx` (synthetic/runtime ayrimi)
+
+### Onemli UI/UX Kararlari (Durustluk ve Empty State)
+
+- UI, "operasyon basarisi" gibi gorunebilecek **sahte runtime metrikleri** gostermez. Etiketli canli olay olmadigi icin Runtime Detection metrikleri **uretmez**; bu durum `Runtime Metrics Status` / `not_available` aciklamasi ile sunulur.
+- Topoloji ve timeline ekranlari veri yokken **empty state** gosterir; bos capture/scan durumlari crash yerine bos state ile yonetilir.
+- Device Detail secili cihaz yokken acilmaz; analist akisi cihaz secimine dayanir.
+- Offline benchmark (N-BaIoT) sayisal sonuclari, canli runtime cikarim metrikleri ile **karistirilmaz**; offline referans olarak ayrica konumlandirilir.
 
 ## 15. LLM Katmani
 
