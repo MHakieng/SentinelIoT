@@ -999,6 +999,8 @@ body::before {
   border: 1px solid rgba(79, 124, 255, 0.12);
   cursor: pointer;
   text-align: left;
+  color: var(--text-primary);
+  font: inherit;
 }
 
 .assistant-overlay {
