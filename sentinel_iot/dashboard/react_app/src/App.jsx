@@ -52,6 +52,12 @@ const DEFAULT_TOPOLOGY_REFRESH_MS = 10000
 const MONITOR_STATUS_REFRESH_MS = 2500
 const SCAN_STATUS_REFRESH_MS = 1200
 const LIVE_CAPTURE_WINDOW_SECONDS = 10
+const SCAN_PROFILE_OPTIONS = [
+  { value: 'quick', label: 'Hızlı', description: 'Hızlı genel tarama' },
+  { value: 'iot_discovery', label: 'IoT Keşif', description: 'IoT odaklı portlar' },
+  { value: 'vulnerability', label: 'Zafiyet', description: 'CVE ve servis odaklı tarama' },
+  { value: 'full', label: 'Kapsamlı', description: 'Daha yavaş, kapsamlı tarama' },
+]
 const describeRequestFailure = (err, fallback) => {
   if (!err) {
     return fallback
@@ -69,7 +75,7 @@ const describeRequestFailure = (err, fallback) => {
     return 'Backend iç hata döndürdü. Ayrıntılar için API terminalini kontrol edin.'
   }
 
-  if (typeof err.response.data?.detail === 'string') {
+  if (typeof err.response.data.detail === 'string') {
     return err.response.data.detail
   }
 
@@ -107,6 +113,9 @@ const App = () => {
   const [scanError, setScanError] = useState(null)
   const [scanNotice, setScanNotice] = useState(null)
   const [scanJobs, setScanJobs] = useState([])
+  const [selectedScanProfile, setSelectedScanProfile] = useState('vulnerability')
+  const [liveCaptureSeconds, setLiveCaptureSeconds] = useState(LIVE_CAPTURE_WINDOW_SECONDS)
+  const [trafficRefreshMs, setTrafficRefreshMs] = useState(TRAFFIC_REFRESH_MS)
 
   const [devicesLoading, setDevicesLoading] = useState(true)
   const [devicesError, setDevicesError] = useState(null)
@@ -287,7 +296,7 @@ const App = () => {
     setMonitorStatus(status)
     setMonitorMessage(runtime?.message || null)
     setMonitorSummary(runtime?.summary || null)
-      setMonitorError(status === 'failed' ? runtime?.error || runtime?.message || 'Canlı izleme başarısız oldu.' : null)
+    setMonitorError(status === 'failed' ? runtime?.error || runtime?.message || 'Canlı izleme başarısız oldu.' : null)
   }
 
   const fetchScanRuntimeState = async ({ forceApply = false } = {}) => {
@@ -377,7 +386,7 @@ const App = () => {
     scanPollRef.current = setInterval(checkStatus, SCAN_STATUS_REFRESH_MS)
   }
 
-  const startScan = async ({ targetRange = '', profile = 'vulnerability' } = {}) => {
+  const startScan = async ({ targetRange = '', profile = selectedScanProfile } = {}) => {
     stopStatusPolling()
     scanRuntimeVersionRef.current += 1
     setScanLoading(true)
@@ -430,8 +439,7 @@ const App = () => {
       setMonitorError(null)
 
       if (!monitoringActive) {
-        const response = await axios.post(`${API_BASE_URL}${API_ENDPOINTS.monitorLiveStart}`, null, { params: { duration: LIVE_CAPTURE_WINDOW_SECONDS }, timeout: 8000 })
-
+        const response = await axios.post(`${API_BASE_URL}${API_ENDPOINTS.monitorLiveStart}`, null, { params: { duration: liveCaptureSeconds }, timeout: 8000 })
         const runtime = await fetchMonitorRuntimeState({ forceApply: true })
         if (runtime?.is_running) {
           setTrafficLoading(true)
@@ -501,9 +509,9 @@ const App = () => {
     }
 
     fetchTraffic()
-    const interval = setInterval(fetchTraffic, TRAFFIC_REFRESH_MS)
+    const interval = setInterval(fetchTraffic, trafficRefreshMs)
     return () => clearInterval(interval)
-  }, [activeTab])
+  }, [activeTab, trafficRefreshMs])
 
   useEffect(() => {
     if (!['command', 'live'].includes(activeTab)) {
@@ -628,6 +636,9 @@ const App = () => {
       monitorActionLoading={monitorActionLoading}
       monitorError={monitorError}
       selectedDevice={selectedDevice}
+      selectedScanProfile={selectedScanProfile}
+      scanProfileOptions={SCAN_PROFILE_OPTIONS}
+      onScanProfileChange={setSelectedScanProfile}
       onSelectDevice={setSelectedDevice}
       onStartScan={startScan}
       onRefreshTopology={() => fetchTopology({ showLoading: true })}
@@ -654,7 +665,7 @@ const App = () => {
       case 'devices':
         return <InventoryView devices={devices} onSelectDevice={setSelectedDevice} loading={devicesLoading} error={devicesError} />
       case 'evidence':
-        return <VulnerabilityView devices={devices} />
+        return <VulnerabilityView devices={devices} liveFlows={liveFlows} livePackets={livePackets} />
       case 'live':
         return (
           <div style={{ display: 'grid', gap: '24px' }}>
@@ -694,6 +705,7 @@ const App = () => {
             onStartScan={startScan}
             scanLoading={scanLoading}
             monitoringActive={monitoringActive}
+            devices={devices}
             onSelectDevice={(ip) => {
               const device = devices.find((entry) => entry.ip === ip)
               if (device) {
@@ -719,11 +731,59 @@ const App = () => {
               </div>
               <div className="soft-panel device-summary-tile">
                 <div className="metric-label">Canlı yakalama penceresi</div>
-                <div className="metric-value">{LIVE_CAPTURE_WINDOW_SECONDS}s</div>
+                <div className="metric-value">{liveCaptureSeconds}s</div>
+                <div className="settings-control-row">
+                  {[10, 30, 60].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`settings-chip ${liveCaptureSeconds === value ? 'active' : ''}`}
+                      onClick={() => setLiveCaptureSeconds(value)}
+                    >
+                      {value}s
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="soft-panel device-summary-tile">
-                <div className="metric-label">Runtime metrics</div>
-                <div className="metric-value">{systemMetrics?.runtime_metrics_metadata?.source || 'not_available'}</div>
+                <div className="metric-label">Canlı doğrulama metriği</div>
+                <div className="metric-value">{systemMetrics?.runtime_metrics_metadata?.source || 'Etiketli veri yok'}</div>
+                <div className="status-note">Etiketli canlı pencere olmadan runtime accuracy/F1 hesaplanmaz.</div>
+              </div>
+              <div className="soft-panel device-summary-tile">
+                <div className="metric-label">Varsayılan tarama profili</div>
+                <div className="metric-value">{SCAN_PROFILE_OPTIONS.find((option) => option.value === selectedScanProfile)?.label || selectedScanProfile}</div>
+                <select className="settings-select" value={selectedScanProfile} onChange={(event) => setSelectedScanProfile(event.target.value)}>
+                  {SCAN_PROFILE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label} - {option.description}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="soft-panel device-summary-tile">
+                <div className="metric-label">Canlı veri yenileme</div>
+                <div className="metric-value">{trafficRefreshMs / 1000}s</div>
+                <div className="settings-control-row">
+                  {[2000, 4000, 10000].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`settings-chip ${trafficRefreshMs === value ? 'active' : ''}`}
+                      onClick={() => setTrafficRefreshMs(value)}
+                    >
+                      {value / 1000}s
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="soft-panel device-summary-tile">
+                <div className="metric-label">Sınıf farkındalığı</div>
+                <div className="metric-value">Aktif</div>
+                <div className="status-note">Cihaz sınıfı, canlı akış skorlarının bağlama göre yorumlanmasına yardım eder.</div>
+              </div>
+              <div className="soft-panel device-summary-tile">
+                <div className="metric-label">Paket yakalama notu</div>
+                <div className="metric-value">Npcap / yetki</div>
+                <div className="status-note">Canlı izleme için doğru ağ arayüzü ve yönetici yetkisi gerekebilir.</div>
               </div>
             </div>
           </div>
@@ -772,31 +832,31 @@ const App = () => {
 
         <nav style={{ marginTop: 'auto' }}>
           <div className="sidebar-nav-group">
-            <div className="sidebar-section-label">Command Center</div>
+            <div className="sidebar-section-label">Operasyon Merkezi</div>
             <div className={`nav-item ${activeTab === 'command' ? 'active' : ''}`} onClick={() => openTab('command')}>
-              <LayoutDashboard size={20} /> Command
+              <LayoutDashboard size={20} /> Merkez
             </div>
             <div className={`nav-item ${activeTab === 'devices' ? 'active' : ''}`} onClick={() => openTab('devices')}>
-              <Database size={20} /> Devices
+              <Database size={20} /> Cihazlar
             </div>
             <div className={`nav-item ${activeTab === 'topology' ? 'active' : ''}`} onClick={() => openTab('topology')}>
-              <Share2 size={20} /> Topology
+              <Share2 size={20} /> Topoloji
             </div>
           </div>
 
           <div className="sidebar-nav-group">
-            <div className="sidebar-section-label">Operations</div>
+            <div className="sidebar-section-label">Operasyonlar</div>
             <div className={`nav-item ${activeTab === 'live' ? 'active' : ''}`} onClick={() => openTab('live')}>
-              <Activity size={20} /> Live
+              <Activity size={20} /> Canlı İzleme
             </div>
             <div className={`nav-item ${activeTab === 'evidence' ? 'active' : ''}`} onClick={() => openTab('evidence')}>
-              <AlertTriangle size={20} /> Evidence
+              <AlertTriangle size={20} /> Kanıtlar
             </div>
             <div className={`nav-item ${activeTab === 'validation' ? 'active' : ''}`} onClick={() => openTab('validation')}>
-              <BarChart3 size={20} /> Validation
+              <BarChart3 size={20} /> Doğrulama
             </div>
             <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => openTab('settings')}>
-              <List size={20} /> Settings
+              <List size={20} /> Ayarlar
             </div>
           </div>
         </nav>
@@ -808,12 +868,12 @@ const App = () => {
             <h1 className="page-title">
               {selectedDevice ? `Cihaz Detayları: ${selectedDevice.ip}` : (
                 <>
-                  {activeTab === 'command' && 'Security Operations Cockpit'}
+                  {activeTab === 'command' && 'Operasyon Merkezi'}
                   {activeTab === 'devices' && 'Cihaz Envanteri'}
                   {activeTab === 'topology' && 'Ağ Topolojisi'}
                   {activeTab === 'live' && 'Canlı Operasyonlar'}
-                  {activeTab === 'evidence' && 'Servis Kanıtları'}
-                  {activeTab === 'validation' && 'Doğrulama ve Özet'}
+                  {activeTab === 'evidence' && 'Kanıtlar'}
+                  {activeTab === 'validation' && 'Doğrulama'}
                   {activeTab === 'settings' && 'Ayarlar'}
                 </>
               )}
@@ -834,7 +894,7 @@ const App = () => {
               <Sparkles size={18} color="var(--accent-primary)" />
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Güvenlik Asistanı</div>
-                <div style={{ fontWeight: '700' }}>{selectedDevice ? 'Hızlı cihaz görünümü' : 'Bir cihaz seçin'}</div>
+                <div style={{ fontWeight: '700' }}>{selectedDevice ? 'Cihaz analizi' : 'Bir cihaz seçin'}</div>
               </div>
             </button>
             <div className="card summary-tile">

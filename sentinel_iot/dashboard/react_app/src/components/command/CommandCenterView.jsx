@@ -418,7 +418,7 @@ const CommandCenterView = ({
         <div className="command-events-panel">
           <div className="section-header">
             <div>
-              <h3 className="command-section-title"><Clock3 size={18} /> Security Event Timeline</h3>
+              <h3 className="command-section-title"><Clock3 size={18} /> Güvenlik Olay Akışı</h3>
             </div>
           </div>
           <SecurityEventTimeline

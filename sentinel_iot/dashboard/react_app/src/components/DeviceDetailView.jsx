@@ -617,17 +617,17 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                                 <div className="soft-panel ai-analysis-section cve-brief">
                                   <div className="section-header">
                                     <div>
-                                      <div className="metric-label">CVE explanation</div>
+                                      <div className="metric-label">CVE Açıklaması</div>
                                       <div className="table-primary">{cveExplanation.title || selectedCveMeta.cveId}</div>
                                     </div>
                                     <span className="badge badge-warning">{selectedCveMeta.cveId}</span>
                                   </div>
                                   <div className="ai-analysis-copy">{cveExplanation.plain_language_summary}</div>
-                                  <div className="metric-label">Why it matters</div>
+                                  <div className="metric-label">Neden önemli</div>
                                   <div className="ai-analysis-copy">{cveExplanation.why_it_matters_for_this_device}</div>
                                   {Array.isArray(cveExplanation.recommended_actions) && cveExplanation.recommended_actions.length > 0 && (
                                     <>
-                                      <div className="metric-label">Actions</div>
+                                      <div className="metric-label">Önerilen Aksiyonlar</div>
                                       <ul className="ai-analysis-list">
                                         {cveExplanation.recommended_actions.slice(0, 3).map((item, itemIndex) => (
                                           <li key={`${selectedCveMeta.cveId}-action-${itemIndex}`}>{item}</li>
@@ -637,7 +637,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                                   )}
                                   <div className="analyst-grounding-grid">
                                     <div className="soft-panel device-summary-tile">
-                                      <div className="metric-label">Service</div>
+                                      <div className="metric-label">Servis</div>
                                       <div className="metric-value">{cveExplanation.grounding_summary.service || 'Bilinmiyor'}</div>
                                     </div>
                                     <div className="soft-panel device-summary-tile">

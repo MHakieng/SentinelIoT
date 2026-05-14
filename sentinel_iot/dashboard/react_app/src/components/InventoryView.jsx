@@ -1,6 +1,7 @@
 import React from 'react'
 import { Monitor, ChevronRight, HardDrive, ShieldAlert, ShieldCheck, Network, Fingerprint } from 'lucide-react'
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import DeviceClassBadge from './DeviceClassBadge'
 import { translateRiskStatus } from '../lib/uiText'
 
 const COLORS = ['var(--neon-pink)', 'rgba(255,255,255,0.05)']
@@ -98,6 +99,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
           <thead>
             <tr>
               <th>Cihaz</th>
+              <th>Cihaz Sınıfı</th>
               <th>Ağ</th>
               <th>Görünürlük</th>
               <th>Risk</th>
@@ -108,7 +110,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
           <tbody>
             {loading && (
               <tr>
-                <td colSpan="6" className="p-0">
+                <td colSpan="7" className="p-0">
                   <div className="skeleton-row">
                     <div className="skeleton-cell" style={{ maxWidth: '40px' }}><div className="skeleton skeleton-icon"></div></div>
                     <div className="skeleton-cell"><div className="skeleton skeleton-text" style={{ width: '80%' }}></div><div className="skeleton skeleton-text" style={{ width: '40%' }}></div></div>
@@ -128,7 +130,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             )}
             {!loading && error && devices.length === 0 && (
               <tr>
-                <td colSpan="6" className="p-0">
+                <td colSpan="7" className="p-0">
                   <div className="empty-state">
                     <ShieldAlert className="empty-state-icon" style={{ color: 'var(--danger)' }} />
                     <div className="empty-state-title" style={{ color: 'var(--danger)' }}>Yükleme Hatası</div>
@@ -165,9 +167,19 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
                   </td>
                   <td>
                     <div className="metric-stack inventory-metric-stack">
+                      <DeviceClassBadge deviceClass={device.device_class} confidence={device.device_class_confidence} compact />
+                      <div className="table-secondary">
+                        {device.device_class_confidence === null || device.device_class_confidence === undefined
+                          ? '—'
+                          : `Sınıflandırma güveni ${Number(device.device_class_confidence || 0).toFixed(2)}`}
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="metric-stack inventory-metric-stack">
                       <div className="metric-value">{device.ip}</div>
                       <div className="inventory-inline-meta">
-                        <span><Network size={12} /> Host record</span>
+                        <span><Network size={12} /> Host kaydı</span>
                         <span>{translateRiskStatus(device.status)}</span>
                       </div>
                     </div>
@@ -218,7 +230,7 @@ const InventoryView = ({ devices, onSelectDevice, loading = false, error = null 
             })}
             {!loading && !error && devices.length === 0 && (
               <tr>
-                <td colSpan="6" className="p-0">
+                <td colSpan="7" className="p-0">
                   <div className="empty-state">
                     <HardDrive className="empty-state-icon" />
                     <div className="empty-state-title">Envanter Boş</div>
