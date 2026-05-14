@@ -75,6 +75,134 @@ body::before {
   box-shadow: 0 16px 34px -24px rgba(0, 0, 0, 0.6);
 }
 
+/* -------------------------------------------------- */
+/*  Missing utility / layout classes                   */
+/* -------------------------------------------------- */
+
+/* Page header – flex row between title + header tiles */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.page-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Fade-in animation for page transitions */
+.fade-in {
+  animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Spinner animation for Loader2 icons */
+.spin {
+  animation: spin360 0.9s linear infinite;
+}
+
+@keyframes spin360 {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Status note – small muted informational text */
+.status-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+/* Error badge in page header */
+.error-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  white-space: nowrap;
+}
+
+/* Table row hover effect */
+.table-row-hover {
+  transition: background 0.15s ease;
+}
+
+.table-row-hover:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Command Center layout */
+.command-center {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.command-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.08rem;
+  font-weight: 600;
+}
+
+.command-events-panel {
+  padding: 18px;
+}
+
+.command-profile-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Validation / metrics page layout */
+.validation-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.validation-model-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* Topology page */
+.topology-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .btn {
   padding: 12px 20px;
   border-radius: 12px;
