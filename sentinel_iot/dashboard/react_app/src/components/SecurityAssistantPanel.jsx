@@ -29,7 +29,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
   }, [device?.ip])
 
   const loadAnalysis = async (forceRefresh = false) => {
-    if (!device?.ip) {
+    if (!device.ip) {
       return
     }
 
@@ -77,7 +77,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
     if (!device) {
       return (
         <div className="state-message assistant-panel-empty">
-          Cihaz seçin.
+          Analiz için bir cihaz veya akış seçin.
         </div>
       )
     }
@@ -113,13 +113,13 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
           <div className="soft-panel ai-analysis-section">
             <div className="metric-label">{DEVICE_ANALYSIS_VIEWS[activeView].label}</div>
             <div className="ai-analysis-copy">
-              {analysis.sections?.[activeView] || 'Bu bölüm için analiz metni bulunmuyor.'}
+                {analysis.sections?.[activeView] || 'Bu bölüm için analiz metni bulunmuyor.'}
             </div>
           </div>
         ) : (
           <div className="soft-panel ai-analysis-section">
             <div className="metric-label">{DEVICE_ANALYSIS_VIEWS.next_actions.label}</div>
-            {Array.isArray(analysis.sections?.next_actions) && analysis.sections.next_actions.length > 0 ? (
+            {Array.isArray(analysis.sections.next_actions) && analysis.sections.next_actions.length > 0 ? (
               <ul className="ai-analysis-list">
                 {analysis.sections.next_actions.map((item, index) => (
                   <li key={`${device.ip}-assistant-action-${index}`}>{item}</li>
@@ -139,7 +139,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
             <div className="assistant-grounding-grid">
               <div className="soft-panel device-summary-tile">
                 <div className="metric-label">Risk puanı</div>
-                <div className="metric-value">{analysis.grounding_summary.risk_score ?? 0}</div>
+                <div className="metric-value">{analysis.grounding_summary?.risk_score ?? 0}</div>
               </div>
               <div className="soft-panel device-summary-tile">
                 <div className="metric-label">Durum</div>
@@ -147,11 +147,11 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
               </div>
               <div className="soft-panel device-summary-tile">
                 <div className="metric-label">Son anomaliler</div>
-                <div className="metric-value">{analysis.grounding_summary.recent_anomaly_count ?? 0}</div>
+                <div className="metric-value">{analysis.grounding_summary?.recent_anomaly_count ?? 0}</div>
               </div>
               <div className="soft-panel device-summary-tile">
                 <div className="metric-label">Açık servisler</div>
-                <div className="metric-value">{analysis.grounding_summary.open_service_count ?? 0}</div>
+                <div className="metric-value">{analysis.grounding_summary?.open_service_count ?? 0}</div>
               </div>
             </div>
           </div>
@@ -177,8 +177,9 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
       <aside className="assistant-panel">
         <div className="assistant-panel-header">
           <div>
-            <div className="assistant-panel-kicker">Güvenlik Asistanı</div>
-            <h3 className="assistant-panel-title">Yalnızca cihaza özel analiz</h3>
+            <div className="assistant-panel-kicker">AI Güvenlik Asistanı</div>
+            <h3 className="assistant-panel-title">Kanıta dayalı güvenlik analisti</h3>
+            <div className="status-note">Cihaz, CVE ve canlı akış kanıtlarına göre açıklama ve öneri üretir; serbest internet araması yapmaz.</div>
           </div>
           <button className="assistant-close" onClick={onClose} aria-label="Güvenlik Asistanını kapat">
             <X size={18} />
@@ -186,7 +187,17 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
         </div>
 
         <div className="assistant-actions">
-          {Object.entries(DEVICE_ANALYSIS_VIEWS).map(([key, config]) => (
+          <button
+            className={`assistant-chip ${activeView === 'risk_explanation' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveView('risk_explanation')
+              if (!analysis && !loading && device) loadAnalysis(false)
+            }}
+            disabled={!device}
+          >
+            Bu cihazı açıkla
+          </button>
+          {Object.entries(DEVICE_ANALYSIS_VIEWS).filter(([key]) => key !== 'risk_explanation').map(([key, config]) => (
             <button
               key={key}
               className={`assistant-chip ${activeView === key ? 'active' : ''}`}
@@ -213,7 +224,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
             disabled={!device || loading}
             style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-primary)', border: '1px solid rgba(148, 163, 184, 0.12)' }}
           >
-            {loading ? <Loader2 size={14} className="spin" /> : analysis ? <RefreshCcw size={14} /> : <Shield size={14} />}
+              {loading ? <Loader2 size={14} className="spin" /> : analysis ? <RefreshCcw size={14} /> : <Shield size={14} />}
             {loading ? 'Yükleniyor...' : analysis ? 'Yenile' : 'Analizi Yükle'}
           </button>
         </div>

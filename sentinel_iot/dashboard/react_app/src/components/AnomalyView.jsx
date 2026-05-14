@@ -1,42 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  AreaChart,
   Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar
 } from 'recharts'
-import { Activity, AlertOctagon, TrendingUp, Zap, Target, Gauge, Play, Loader2 } from 'lucide-react'
+import { Activity, AlertOctagon, Info, Loader2, Play, Radio, TrendingUp, Zap } from 'lucide-react'
 import { translateRiskStatus } from '../lib/uiText'
 
 const ANOMALY_ALERT_THRESHOLD = 40
-
-const EMPTY_METRICS = {
-  synthetic_training_metrics: {
-    f1_score: 0,
-    precision: 0,
-    recall: 0,
-    average_precision: 0,
-    validation_status: 'unavailable',
-  },
-}
-
-const formatRatioAsPercent = (value) => {
-  if (value == null) {
-    return 'N/A'
-  }
-  return `${(value * 100).toFixed(1)}%`
+const truncatePacketInfo = (value, maxLength = 180) => {
+  const text = String(value || '')
+  if (!text) return 'Yazdırılabilir yük önizlemesi yok'
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text
 }
 
 const AnomalyView = ({
   devices,
-  metrics,
-  metricsLoading,
-  metricsError,
   livePackets,
   trafficLoading,
   trafficError,
@@ -49,36 +34,29 @@ const AnomalyView = ({
   monitorSummary = null,
   monitorActionLoading = false,
   monitorError = null,
-  onToggleMonitoring
+  onToggleMonitoring,
 }) => {
   const [consolePackets, setConsolePackets] = useState([])
   const packetConsoleRef = useRef(null)
   const seenPacketKeys = useRef(new Set())
 
-  const metricValues = metrics?.synthetic_training_metrics || EMPTY_METRICS.synthetic_training_metrics
   const anomalousDevices = devices.filter((device) => (device.risk_breakdown?.anomaly || 0) >= ANOMALY_ALERT_THRESHOLD)
 
   const packetKey = (packet) =>
     `${packet.timestamp}-${packet.source_ip}-${packet.destination_ip}-${packet.packet_length}-${packet.protocol}`
 
   useEffect(() => {
-    if (!Array.isArray(livePackets) || livePackets.length === 0) {
-      return
-    }
+    if (!Array.isArray(livePackets) || livePackets.length === 0) return
 
     setConsolePackets((prev) => {
       const newPackets = livePackets.filter((packet) => {
         const key = packetKey(packet)
-        if (seenPacketKeys.current.has(key)) {
-          return false
-        }
+        if (seenPacketKeys.current.has(key)) return false
         seenPacketKeys.current.add(key)
         return true
       })
 
-      if (newPackets.length === 0) {
-        return prev
-      }
+      if (newPackets.length === 0) return prev
 
       const combined = [...prev, ...newPackets]
       if (combined.length > 500) {
@@ -95,16 +73,14 @@ const AnomalyView = ({
     }
   }, [consolePackets])
 
-  const chartLoading = historyLoading
-  const chartError = historyError
   const monitorHeadline = monitorStatus === 'stopping'
     ? 'Mevcut yakalama penceresinden sonra duruyor'
     : monitoringActive
-      ? 'Yakalama çalışıyor'
-      : 'Başlatmaya hazır'
+      ? 'Paket yakalama çalışıyor'
+      : 'Canlı izleme başlatmaya hazır'
   const monitorBody = monitorError
     ? 'Canlı izleme kullanılamıyor.'
-    : monitorMessage || ''
+    : monitorMessage || 'Canlı izleme, paketleri yakalayıp akış seviyesinde gruplayarak risk skorlarını besler.'
   const monitorButtonLabel = monitorActionLoading
     ? 'Güncelleniyor...'
     : monitorStatus === 'stopping'
@@ -118,42 +94,30 @@ const AnomalyView = ({
   const flowBufferLimit = Number(monitorSummary?.flow_buffer_limit || 500)
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px' }}>
-      <div className="card" style={{ gridColumn: '1 / -1', padding: '20px' }}>
-        <div className="section-header" style={{ marginBottom: '16px' }}>
+    <div className="live-dashboard-grid">
+      <div className="card live-overview-panel">
+        <div className="section-header">
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>İzleme Görünümü</h3>
+            <h3 className="command-section-title"><Activity size={18} /> Canlı İzleme</h3>
+            <div className="table-secondary">Paket yakalama, akış çıkarımı ve canlı risk skorlarını gösterir.</div>
           </div>
         </div>
+
         <div className="anomaly-summary-grid">
           <div className="soft-panel anomaly-monitor-panel">
             <div className="metric-label">Canlı İzleme</div>
-            <div style={{ fontSize: '1.12rem', fontWeight: '700', margin: '10px 0 8px' }}>
-              {monitorHeadline}
-            </div>
-            {monitorBody && (
-              <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                {monitorBody}
-              </div>
-            )}
-            {monitorError && (
-              <div style={{ marginTop: '12px', fontSize: '0.78rem', color: 'var(--danger)' }}>
-                {monitorError}
-              </div>
-            )}
+            <div className="monitor-headline">{monitorHeadline}</div>
+            <div className="status-note">{monitorBody}</div>
+            {monitorError && <div className="status-note danger-text">{monitorError}</div>}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginTop: '16px' }}>
+            <div className="live-counter-grid">
               <div>
-                <div className="metric-label">Toplam akis</div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, marginTop: '4px' }}>
-                  {totalFlowsSeen.toLocaleString('tr-TR')}
-                </div>
+                <div className="metric-label">Toplam akış</div>
+                <div className="metric-value">{totalFlowsSeen.toLocaleString('tr-TR')}</div>
               </div>
               <div>
-                <div className="metric-label">Bellekteki akis</div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, marginTop: '4px' }}>
-                  {flowsTracked.toLocaleString('tr-TR')} / {flowBufferLimit.toLocaleString('tr-TR')}
-                </div>
+                <div className="metric-label">Bellekteki akış</div>
+                <div className="metric-value">{flowsTracked.toLocaleString('tr-TR')} / {flowBufferLimit.toLocaleString('tr-TR')}</div>
               </div>
             </div>
 
@@ -167,7 +131,6 @@ const AnomalyView = ({
                 background: monitoringActive ? 'rgba(239, 68, 68, 0.18)' : undefined,
                 color: monitoringActive ? '#fecaca' : undefined,
                 border: monitoringActive ? '1px solid rgba(239, 68, 68, 0.22)' : 'none',
-                opacity: monitorActionLoading ? 0.85 : 1
               }}
             >
               {monitorActionLoading ? <Loader2 className="spin" size={16} /> : monitoringActive ? <Activity className="spin" size={16} /> : <Play size={16} />}
@@ -177,90 +140,46 @@ const AnomalyView = ({
 
           <div className="soft-panel anomaly-alert-panel">
             <div className="metric-label">İnceleme Gerektiren Cihazlar</div>
-            <div style={{ fontSize: '2rem', fontWeight: '800', lineHeight: 1, color: anomalousDevices.length > 0 ? 'var(--danger)' : 'var(--success)', marginTop: '10px' }}>
-              {anomalousDevices.length}
-            </div>
-            <div style={{ marginTop: '6px', fontSize: '0.88rem', fontWeight: '600' }}>
-              {anomalousDevices.length === 1 ? 'eşik üstünde cihaz' : 'eşik üstünde cihaz'}
-            </div>
+            <div className={`live-large-number ${anomalousDevices.length > 0 ? 'danger-text' : 'success-text'}`}>{anomalousDevices.length}</div>
+            <div className="status-note">Risk/anomali bileşeni eşik üstünde olan cihazlar.</div>
             <div className="anomaly-alert-list">
               {anomalousDevices.slice(0, 3).map((device) => (
                 <div key={device.ip} className="anomaly-alert-item">
                   <div>
                     <div className="table-primary">{device.ip}</div>
-                    <div className="table-secondary" style={{ marginTop: '2px' }}>{translateRiskStatus(device.status)}</div>
+                    <div className="table-secondary">{translateRiskStatus(device.status)}</div>
                   </div>
                   <div className="anomaly-alert-score">{(device.risk_breakdown?.anomaly || 0).toFixed(1)}</div>
                 </div>
               ))}
-              {anomalousDevices.length === 0 && (
-                <div className="status-note" style={{ marginTop: '12px' }}>
-                  Eşik üstü cihaz yok.
-                </div>
-              )}
+              {anomalousDevices.length === 0 && <div className="status-note">Eşik üstü cihaz yok.</div>}
             </div>
           </div>
 
-          <div className="soft-panel" style={{ padding: '18px' }}>
-            <div className="metric-label" style={{ marginBottom: '12px' }}>
-              Model Doğrulama
+          <div className="soft-panel live-runtime-note">
+            <div className="runtime-limitation-icon"><Info size={22} /></div>
+            <div>
+              <div className="metric-label">Canlı metrik ayrımı</div>
+              <p>
+                Bu sayfada runtime accuracy, precision, recall veya F1 gösterilmez. Canlı trafikte etiketli
+                ground-truth olmadığı için ekran yalnızca inference skoru, risk skoru ve kararları gösterir.
+              </p>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Target size={18} color="var(--accent-primary)" />
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Kesinlik</div>
-                  <div style={{ fontWeight: '700' }}>{metricsLoading ? '...' : formatRatioAsPercent(metricValues.precision)}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Activity size={18} color="var(--accent-secondary)" />
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Duyarlılık</div>
-                  <div style={{ fontWeight: '700' }}>{metricsLoading ? '...' : formatRatioAsPercent(metricValues.recall)}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Zap size={18} color="var(--success)" />
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>F1 Score</div>
-                  <div style={{ fontWeight: '700' }}>{metricsLoading ? '...' : formatRatioAsPercent(metricValues.f1_score)}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Gauge size={18} color="var(--warning)" />
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Ort. Kesinlik</div>
-                  <div style={{ fontWeight: '700' }}>{metricsLoading ? '...' : formatRatioAsPercent(metricValues.average_precision)}</div>
-                </div>
-              </div>
-            </div>
-            {!metricsLoading && metricValues.validation_status === 'unavailable' && (
-              <div style={{ marginTop: '14px', fontSize: '0.78rem', color: 'var(--warning)' }}>
-                Doğrulama etiketi yok.
-              </div>
-            )}
-            {metricsError && (
-              <div style={{ marginTop: '14px', fontSize: '0.78rem', color: 'var(--danger)' }}>
-                {metricsError}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      <div className="card" style={{ height: '380px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-        <div className="section-header" style={{ marginBottom: '14px' }}>
+      <div className="card live-chart-card">
+        <div className="section-header">
           <div>
-            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
-              <TrendingUp size={18} /> Trafik Eğilimi
-            </h3>
+            <h3 className="command-section-title"><TrendingUp size={18} /> Trafik Eğilimi</h3>
+            <div className="table-secondary">Yakalanan paketlerin zaman içindeki sayısını gösterir; başarı metriği değildir.</div>
           </div>
         </div>
-        {chartLoading ? (
+        {historyLoading ? (
           <div className="state-message">Son trafik geçmişi yükleniyor...</div>
-        ) : chartError ? (
-          <div className="state-message state-message-danger">{chartError}</div>
+        ) : historyError ? (
+          <div className="state-message state-message-danger">{historyError}</div>
         ) : trafficHistory.length === 0 ? (
           <div className="state-message">Henüz trafik geçmişi kaydedilmedi.</div>
         ) : (
@@ -282,12 +201,11 @@ const AnomalyView = ({
         )}
       </div>
 
-      <div className="card" style={{ height: '380px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-        <div className="section-header" style={{ marginBottom: '14px' }}>
+      <div className="card live-chart-card">
+        <div className="section-header">
           <div>
-            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
-              <Zap size={18} /> İzleme Puanları
-            </h3>
+            <h3 className="command-section-title"><Zap size={18} /> İzleme Puanları</h3>
+            <div className="table-secondary">Cihaz risk kırılımındaki anomali bileşenine göre görselleştirilir.</div>
           </div>
         </div>
         {devices.length === 0 ? (
@@ -306,99 +224,62 @@ const AnomalyView = ({
         )}
       </div>
 
-      <div className="card" style={{ gridColumn: '1 / -1', padding: '20px' }}>
-        <div className="section-header" style={{ marginBottom: '14px' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>İnceleme Kuyruğu</h3>
-          </div>
+      <div className="card live-review-panel">
+        <div className="section-header">
+          <h3 className="command-section-title"><AlertOctagon size={18} /> İnceleme Kuyruğu</h3>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div className="live-review-list">
           {anomalousDevices.map((device, idx) => (
             <div key={idx} className="soft-panel anomaly-review-row">
               <AlertOctagon color="var(--danger)" />
               <div>
-                <div style={{ fontWeight: '600' }}>{device.ip}</div>
+                <div className="table-primary">{device.ip}</div>
+                <div className="table-secondary">{translateRiskStatus(device.status)}</div>
               </div>
-              <div style={{ fontWeight: '700', color: 'var(--danger)', textAlign: 'right' }}>
-                {(device.risk_breakdown?.anomaly || 0).toFixed(1)}/100
-              </div>
+              <strong className="danger-text">{(device.risk_breakdown?.anomaly || 0).toFixed(1)}/100</strong>
             </div>
           ))}
-          {anomalousDevices.length === 0 && (
-            <div className="state-message" style={{ minHeight: '100px' }}>
-              Şu anda hiçbir cihaz anomali uyarı eşiğini aşmıyor.
-            </div>
-          )}
+          {anomalousDevices.length === 0 && <div className="state-message">Şu anda hiçbir cihaz anomali uyarı eşiğini aşmıyor.</div>}
         </div>
       </div>
 
-      {monitoringActive && (
-        <div className="card" style={{ gridColumn: '1 / -1', background: 'rgba(12, 16, 24, 0.96)', border: '1px solid rgba(148, 163, 184, 0.12)', padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid rgba(148, 163, 184, 0.12)', paddingBottom: '12px' }}>
-            <div>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', fontSize: '1rem', margin: 0 }}>
-                <Activity size={16} color="var(--danger)" /> Canlı Paket Önizlemesi
-              </h3>
+      <div className="card live-packet-panel">
+        <div className="section-header">
+          <div>
+            <h3 className="command-section-title"><Radio size={18} /> Paket Önizleme</h3>
+            <div className="table-secondary">
+              Canlı paket yakalama Scapy/Npcap üzerinden yapılır. Bu arayüz PCAP import/replay değil, canlı paket önizleme ve akış özeti sunar.
             </div>
-            <button
-              onClick={() => { setConsolePackets([]); seenPacketKeys.current.clear() }}
-              style={{ background: 'transparent', border: '1px solid rgba(148, 163, 184, 0.16)', color: 'var(--text-secondary)', fontSize: '0.72rem', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'monospace' }}
-            >
-              TEMİZLE
-            </button>
           </div>
-
-          <div
-            ref={packetConsoleRef}
-            style={{
-              fontFamily: '"Fira Code", "Courier New", Courier, monospace',
-              fontSize: '0.84rem',
-              height: '320px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              paddingRight: '8px'
-            }}
+          <button
+            onClick={() => { setConsolePackets([]); seenPacketKeys.current.clear() }}
+            className="btn command-ghost-btn"
+            type="button"
           >
-            {trafficLoading && consolePackets.length === 0 ? (
-              <div className="state-message state-message-compact" style={{ minHeight: '160px' }}>Paket akışı yükleniyor...</div>
-            ) : trafficError && consolePackets.length === 0 ? (
-              <div className="state-message state-message-danger state-message-compact" style={{ minHeight: '160px' }}>{trafficError}</div>
-            ) : consolePackets.length > 0 ? consolePackets.map((packet, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  padding: '10px 12px',
-                  background: 'rgba(239, 68, 68, 0.05)',
-                  borderLeft: '2px solid var(--danger)',
-                  borderRadius: '6px'
-                }}
-              >
-                <div style={{ display: 'flex', gap: '16px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                  <span style={{ color: '#fff' }}>[{packet.timestamp}]</span>
-                  <span>{packet.source_ip}:{packet.source_port} <span style={{ color: '#666' }}>-&gt;</span> {packet.destination_ip}:{packet.destination_port}</span>
-                  <span style={{
-                    color: packet.protocol === 'TCP' ? 'var(--accent-primary)' : (packet.protocol === 'UDP' ? 'var(--accent-secondary)' : 'var(--success)'),
-                    fontWeight: 'bold'
-                  }}>[{packet.protocol}]</span>
-                  <span>LEN:{packet.packet_length}</span>
-                </div>
-                <div style={{ color: 'var(--danger)', paddingLeft: '12px', wordBreak: 'break-all', fontSize: '0.8rem' }}>
-                  &gt; {packet.info || 'Yazdırılabilir yük önizlemesi yok'}
-                </div>
-              </div>
-            )) : (
-              <div className="state-message state-message-compact" style={{ minHeight: '160px' }}>
-                Paket önizlemeleri bekleniyor...
-              </div>
-            )}
-          </div>
+            Temizle
+          </button>
         </div>
-      )}
+
+        <div ref={packetConsoleRef} className="packet-preview-list">
+          {trafficLoading && consolePackets.length === 0 ? (
+            <div className="state-message">Paket akışı yükleniyor...</div>
+          ) : trafficError && consolePackets.length === 0 ? (
+            <div className="state-message state-message-danger">Paket yakalama başlatılamadı. Npcap, yetki ve ağ arayüzünü kontrol edin. {trafficError}</div>
+          ) : consolePackets.length > 0 ? consolePackets.map((packet, idx) => (
+            <article key={idx} className="packet-preview-item">
+              <div className="packet-preview-meta">
+                <span>[{packet.timestamp}]</span>
+                <strong>{packet.source_ip}:{packet.source_port} → {packet.destination_ip}:{packet.destination_port}</strong>
+                <b>{packet.protocol}</b>
+                <span>{packet.packet_length} bayt</span>
+              </div>
+              <div className="packet-preview-info" title={packet.info || ''}>{truncatePacketInfo(packet.info)}</div>
+            </article>
+          )) : (
+            <div className="state-message">Henüz paket yakalanmadı. Canlı izlemeyi başlatın.</div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

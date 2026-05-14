@@ -17,8 +17,9 @@ import {
   Zap,
 } from 'lucide-react'
 import axios from 'axios'
-import ForceGraph2D from 'react-force-graph-2d'
+import DeviceClassBadge from '../DeviceClassBadge'
 import { fetchDeviceAnalysis, peekDeviceAnalysis } from '../../lib/deviceAnalysisClient'
+import { getFlowFinalRisk, isHighRiskFlow } from '../../lib/flowRisk'
 import { DEVICE_ANALYSIS_VIEWS, describeLlmUiFailure } from '../../lib/llmUiContent'
 import { translateRiskStatus } from '../../lib/uiText'
 import SecurityEventTimeline from './SecurityEventTimeline'
@@ -29,14 +30,6 @@ const getRiskTone = (score) => {
   if (risk >= 70) return 'danger'
   if (risk >= 35) return 'warning'
   return 'success'
-}
-
-const getNodeColor = (node) => {
-  if (node.type === 'gateway') return '#60a5fa'
-  const tone = getRiskTone(node.risk_score)
-  if (tone === 'danger') return '#ef4444'
-  if (tone === 'warning') return '#f59e0b'
-  return '#22c55e'
 }
 
 const formatNumber = (value) => new Intl.NumberFormat('tr-TR').format(Number(value || 0))
@@ -59,16 +52,12 @@ const CommandCenterView = ({
   topologyRefreshing,
   topologyError,
   topologyLastUpdated,
-  trafficHistory,
-  historyLoading,
-  historyError,
   liveFlows,
   livePackets,
   trafficLoading,
   trafficError,
   systemMetrics,
   metricsLoading,
-  metricsError,
   scanJobs,
   scanState,
   scanStateMeta,
@@ -80,6 +69,9 @@ const CommandCenterView = ({
   monitorActionLoading,
   monitorError,
   selectedDevice,
+  selectedScanProfile = 'vulnerability',
+  scanProfileOptions = [],
+  onScanProfileChange,
   onSelectDevice,
   onStartScan,
   onRefreshTopology,
@@ -96,8 +88,8 @@ const CommandCenterView = ({
   const [selectedTimelineError, setSelectedTimelineError] = useState(null)
 
   const graphData = useMemo(() => ({
-    nodes: Array.isArray(topologyData?.nodes) ? topologyData.nodes : [],
-    links: Array.isArray(topologyData?.links) ? topologyData.links : [],
+    nodes: Array.isArray(topologyData.nodes) ? topologyData.nodes : [],
+    links: Array.isArray(topologyData.links) ? topologyData.links : [],
   }), [topologyData])
 
   const priorityDevices = useMemo(() => (
@@ -109,8 +101,13 @@ const CommandCenterView = ({
   const selected = selectedDevice || null
   const riskyDevices = devices.filter((device) => Number(device.risk_score || 0) >= 70)
   const exposedServices = devices.reduce((sum, device) => sum + (Array.isArray(device.open_ports) ? device.open_ports.length : 0), 0)
-  const anomalyFlows = liveFlows.filter((flow) => flow.label === 1 || Number(flow.anomaly_score || 0) >= 0.5)
+  const highRiskFlows = liveFlows.filter(isHighRiskFlow)
   const hasRuntimeLabels = Boolean(systemMetrics?.runtime_detection_metrics)
+  const deviceClassCounts = devices.reduce((counts, device) => {
+    const key = device.device_class || 'unclassified'
+    counts[key] = (counts[key] || 0) + 1
+    return counts
+  }, {})
 
   const timeline = useMemo(() => buildSecurityTimelineEvents({
     devices,
@@ -212,12 +209,13 @@ const CommandCenterView = ({
       <section className="command-status-bar">
         <div>
           <div className="command-kicker">Sentinel-IoT v6</div>
-          <h2>Security Operations Cockpit</h2>
+          <h2>Operasyon Merkezi</h2>
+          <div className="table-secondary">Cihaz sınıfı, CVE kanıtları ve canlı akış skorlarıyla açıklanabilir risk önceliği.</div>
         </div>
         <div className="command-status-cluster">
-          <div className={scanStateMeta[scanState]?.className || 'status-pill status-pill-neutral'}>
-            {scanStateMeta[scanState]?.icon}
-            {scanStateMeta[scanState]?.label || 'Hazır'}
+          <div className={scanStateMeta[scanState].className || 'status-pill status-pill-neutral'}>
+            {scanStateMeta[scanState].icon}
+            {scanStateMeta[scanState].label || 'Hazır'}
           </div>
           <div className={`status-pill ${monitoringActive ? 'status-pill-success' : 'status-pill-neutral'}`}>
             <Radio size={12} />
@@ -227,7 +225,15 @@ const CommandCenterView = ({
             <RefreshCw size={15} className={topologyRefreshing ? 'spin' : ''} />
             Haritayı yenile
           </button>
-          <button className="btn btn-primary" type="button" onClick={() => onStartScan?.({ profile: 'vulnerability' })} disabled={scanLoading}>
+          <label className="command-profile-select">
+            <span>Tarama profili</span>
+            <select value={selectedScanProfile} onChange={(event) => onScanProfileChange?.(event.target.value)} disabled={scanLoading}>
+              {scanProfileOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <button className="btn btn-primary" type="button" onClick={() => onStartScan?.({ profile: selectedScanProfile })} disabled={scanLoading}>
             {scanLoading ? <Loader2 size={15} className="spin" /> : <Search size={15} />}
             {scanLoading ? `Tarama ${scanProgress}%` : 'Taramayı başlat'}
           </button>
@@ -247,8 +253,10 @@ const CommandCenterView = ({
           ['Yüksek Risk', devicesLoading ? '...' : formatNumber(riskyDevices.length), <ShieldAlert size={18} />],
           ['Açık Servis', devicesLoading ? '...' : formatNumber(exposedServices), <Router size={18} />],
           ['Canlı Akış', trafficLoading ? '...' : formatNumber(liveFlows.length), <Activity size={18} />],
-          ['Şüpheli Akış', trafficLoading ? '...' : formatNumber(anomalyFlows.length), <Zap size={18} />],
-          ['Model Durumu', metricsLoading ? '...' : (hasRuntimeLabels ? 'Aktif' : 'Veri Yok'), <BarChart3 size={18} />],
+          ['Yüksek Riskli Akış', trafficLoading ? '...' : formatNumber(highRiskFlows.length), <Zap size={18} />],
+          ['Canlı Doğrulama', metricsLoading ? '...' : (hasRuntimeLabels ? 'Etiketli veri var' : 'Metrik yok'), <BarChart3 size={18} />],
+          ['IoT / Client', devicesLoading ? '...' : `${formatNumber(deviceClassCounts.iot_device || 0)} / ${formatNumber(deviceClassCounts.client_device || 0)}`, <Radio size={18} />],
+          ['Infra / Unknown', devicesLoading ? '...' : `${formatNumber(deviceClassCounts.network_infrastructure || 0)} / ${formatNumber((deviceClassCounts.unknown || 0) + (deviceClassCounts.unclassified || 0))}`, <Router size={18} />],
         ].map(([label, value, icon]) => (
           <div key={label} className="command-kpi-card">
             <div className="command-kpi-icon">{icon}</div>
@@ -260,11 +268,22 @@ const CommandCenterView = ({
         ))}
       </section>
 
+      <section className="soft-panel command-ai-positioning">
+        <div className="command-kpi-icon"><Sparkles size={18} /></div>
+        <div>
+          <strong>AI Destekli Risk Analizi</strong>
+          <p>
+            SentinelIoT; cihaz sınıfı, açık portlar, CVE kanıtları ve canlı akış skorlarını birlikte değerlendirerek
+            açıklanabilir risk önceliği üretir. Canlı trafikte etiketli ground-truth yoksa runtime accuracy/F1 hesaplanmaz.
+          </p>
+        </div>
+      </section>
+
       <section className="command-grid">
         <div className="command-map-panel">
           <div className="section-header">
             <div>
-              <h3 className="command-section-title"><Shield size={18} /> Operation Map</h3>
+              <h3 className="command-section-title"><Shield size={18} /> Topoloji Risk Görünümü</h3>
             </div>
             <div className="status-note">Son güncelleme: {formatTime(topologyLastUpdated)}</div>
           </div>
@@ -287,26 +306,31 @@ const CommandCenterView = ({
                 <div className="empty-state-copy">Ağ taraması başlatın.</div>
               </div>
             ) : (
-              <ForceGraph2D
-                graphData={graphData}
-                nodeLabel={(node) => `${node.label}\nRisk: ${Math.round(node.risk_score || 0)}`}
-                linkLabel={(link) => `${link.protocol} | ${link.packet_count || 0} paket`}
-                nodeColor={getNodeColor}
-                nodeVal={(node) => node.type === 'gateway' ? 16 : Math.max(6, 7 + Number(node.risk_score || 0) / 12)}
-                linkWidth={(link) => link.anomaly ? 4 : Math.max(1, Math.min(3, Number(link.packet_count || 0) / 8))}
-                linkColor={(link) => link.anomaly ? '#ef4444' : Number(link.packet_count || 0) > 0 ? 'rgba(45, 212, 191, 0.48)' : 'rgba(148, 163, 184, 0.18)'}
-                linkDirectionalParticles={(link) => link.anomaly ? 5 : Number(link.packet_count || 0) > 0 ? 2 : 0}
-                linkDirectionalParticleWidth={(link) => link.anomaly ? 3 : 1.5}
-                linkDirectionalParticleSpeed={0.012}
-                backgroundColor="#080d14"
-                cooldownTicks={80}
-                onNodeClick={(node) => {
-                  if (node.type === 'device') {
-                    const device = devices.find((entry) => entry.ip === node.ip)
-                    if (device) onSelectDevice(device)
-                  }
-                }}
-              />
+              <div className="command-topology-summary">
+                <div className="command-gateway-summary">
+                  <div className="topology-gateway-icon"><Router size={24} /></div>
+                  <div>
+                    <strong>Ağ Geçidi Merkezli Görünüm</strong>
+                    <span>{formatNumber(devices.length)} cihaz, {formatNumber(graphData.links.length)} bağlantı</span>
+                  </div>
+                </div>
+                <div className="command-class-summary-grid">
+                  <div><DeviceClassBadge deviceClass="iot_device" compact /><strong>{formatNumber(deviceClassCounts.iot_device || 0)}</strong></div>
+                  <div><DeviceClassBadge deviceClass="client_device" compact /><strong>{formatNumber(deviceClassCounts.client_device || 0)}</strong></div>
+                  <div><DeviceClassBadge deviceClass="network_infrastructure" compact /><strong>{formatNumber(deviceClassCounts.network_infrastructure || 0)}</strong></div>
+                  <div><DeviceClassBadge deviceClass="unknown" compact /><strong>{formatNumber((deviceClassCounts.unknown || 0) + (deviceClassCounts.unclassified || 0))}</strong></div>
+                </div>
+                <div className="command-top-risk-list">
+                  <div className="metric-label">En riskli cihazlar</div>
+                  {priorityDevices.slice(0, 3).map((device) => (
+                    <button key={`map-${device.ip}`} type="button" className="command-mini-row" onClick={() => onSelectDevice(device)}>
+                      <span>{device.ip}</span>
+                      <b>{Math.round(device.risk_score || 0)}%</b>
+                    </button>
+                  ))}
+                  {priorityDevices.length === 0 && <div className="status-note">Cihaz verisi yok.</div>}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -314,7 +338,7 @@ const CommandCenterView = ({
         <aside className="command-priority-panel">
           <div className="section-header">
             <div>
-              <h3 className="command-section-title"><ShieldAlert size={18} /> Priority Queue</h3>
+              <h3 className="command-section-title"><ShieldAlert size={18} /> Öncelik Kuyruğu</h3>
             </div>
           </div>
           <div className="command-device-list">
@@ -330,6 +354,7 @@ const CommandCenterView = ({
                   <span className={`command-risk-dot ${tone}`}></span>
                   <span>
                     <strong>{device.ip}</strong>
+                    <DeviceClassBadge deviceClass={device.device_class} confidence={device.device_class_confidence} compact />
                     <small>{device.vendor && device.vendor !== 'Unknown' ? device.vendor : 'Bilinmeyen Üretici'}</small>
                   </span>
                   <b>{Math.round(device.risk_score || 0)}</b>
@@ -345,7 +370,7 @@ const CommandCenterView = ({
         <aside className="command-intel-panel">
           <div className="section-header">
             <div>
-              <h3 className="command-section-title"><Sparkles size={18} /> Device Intelligence</h3>
+              <h3 className="command-section-title"><Sparkles size={18} /> AI Destekli Risk Analizi</h3>
             </div>
             <button className="btn command-ghost-btn" type="button" onClick={loadAnalysis} disabled={!selected || analysisLoading}>
               {analysisLoading ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />}
@@ -372,11 +397,11 @@ const CommandCenterView = ({
                 <div className="soft-panel ai-analysis-section">
                   <div className="metric-label">{DEVICE_ANALYSIS_VIEWS.risk_explanation.label}</div>
                   <div className="ai-analysis-copy">{analysis.sections?.risk_explanation || 'Analiz metni yok.'}</div>
-                  {Array.isArray(analysis.sections?.next_actions) && analysis.sections.next_actions.length > 0 && (
+                  {Array.isArray(analysis.sections?.next_actions) && analysis.sections?.next_actions.length > 0 && (
                     <>
                       <div className="metric-label" style={{ marginTop: '14px' }}>{DEVICE_ANALYSIS_VIEWS.next_actions.label}</div>
                       <ul className="ai-analysis-list">
-                        {analysis.sections.next_actions.slice(0, 3).map((item, index) => <li key={index}>{item}</li>)}
+                        {analysis.sections?.next_actions.slice(0, 3).map((item, index) => <li key={index}>{item}</li>)}
                       </ul>
                     </>
                   )}
@@ -406,7 +431,7 @@ const CommandCenterView = ({
         <div className="command-live-panel">
           <div className="section-header">
             <div>
-              <h3 className="command-section-title"><Terminal size={18} /> Live Flow / Packet Preview</h3>
+              <h3 className="command-section-title"><Terminal size={18} /> Canlı Akış / Paket Önizleme</h3>
             </div>
             <button className="btn command-ghost-btn" type="button" onClick={onToggleMonitoring} disabled={monitorActionLoading || monitorStatus === 'stopping'}>
               {monitorActionLoading ? <Loader2 size={14} className="spin" /> : <Activity size={14} />}
@@ -420,7 +445,7 @@ const CommandCenterView = ({
                 {liveFlows.slice(0, 5).map((flow) => (
                   <div key={flow.flow_id} className="command-mini-row">
                     <span>{flow.src_ip}:{flow.src_port} {'->'} {flow.dst_ip}:{flow.dst_port}</span>
-                    <b>{(Number(flow.anomaly_score || 0) * 100).toFixed(0)}%</b>
+                    <b>{getFlowFinalRisk(flow).toFixed(0)}%</b>
                   </div>
                 ))}
                 {!trafficLoading && liveFlows.length === 0 && <div className="status-note">Canlı akış yok.</div>}

@@ -16,6 +16,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import axios from 'axios'
+import DeviceClassBadge from './DeviceClassBadge'
 import {
   Area,
   AreaChart,
@@ -52,13 +53,13 @@ const getRiskTone = (score) => {
 const formatScore = (value) => Number(value || 0).toFixed(1)
 
 const getPortLabel = (port, fallback = 'Port') => (
-  `${port?.port || fallback}${port?.service ? ` ${port.service}` : ''}`
+  `${port.port || fallback}${port.service ? ` ${port.service}` : ''}`
 )
 
 const getLatestRiskDelta = (history) => {
   if (!Array.isArray(history) || history.length < 2) return null
-  const latest = Number(history[history.length - 1]?.risk_score || 0)
-  const previous = Number(history[history.length - 2]?.risk_score || 0)
+  const latest = Number(history[history.length - 1].risk_score || 0)
+  const previous = Number(history[history.length - 2].risk_score || 0)
   return latest - previous
 }
 
@@ -76,8 +77,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
   const [cveLoadingKey, setCveLoadingKey] = useState(null)
   const [cveError, setCveError] = useState(null)
   const analysisRequestRef = useRef(0)
-
-  const openPorts = Array.isArray(device?.open_ports) ? device.open_ports : []
+  const openPorts = Array.isArray(device.open_ports) ? device.open_ports : []
   const vendorLabel = device.vendor && device.vendor !== 'Unknown' ? device.vendor : 'Tanımlanamayan cihaz'
   const statusTone = device.status === 'High Risk' ? 'badge-danger' : device.status === 'Medium Risk' ? 'badge-warning' : 'badge-success'
   const riskTone = getRiskTone(device.risk_score)
@@ -272,7 +272,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
   return (
     <div className="device-detail device-detail-workspace fade-in">
       <button className="device-back-btn" onClick={onBack} type="button">
-        <ArrowLeft size={16} /> Command Center'a dön
+        <ArrowLeft size={16} /> Operasyon merkezine dön
       </button>
 
       <section className="device-risk-summary">
@@ -281,7 +281,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             <Box size={30} />
           </div>
           <div>
-            <div className="command-kicker">Device Risk Summary</div>
+            <div className="command-kicker">Cihaz Risk Özeti</div>
             <h2>{device.ip}</h2>
             <div className="device-identity-meta">
               <span><Fingerprint size={14} /> {device.mac || 'MAC yok'}</span>
@@ -291,7 +291,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
           </div>
         </div>
         <div className="device-risk-score-block">
-          <div className="metric-label">Risk score</div>
+          <div className="metric-label">Risk Skoru</div>
           <div className={`device-risk-score ${riskTone}`}>{Math.round(Number(device.risk_score || 0))}</div>
           <div className="status-note">
             {latestRiskDelta === null ? 'Risk geçmişi kıyas noktası yok' : `Son değişim ${latestRiskDelta >= 0 ? '+' : ''}${latestRiskDelta.toFixed(1)}`}
@@ -299,15 +299,15 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
         </div>
         <div className="device-risk-kpis">
           <div className="soft-panel device-summary-tile">
-            <div className="metric-label">Total CVE</div>
+            <div className="metric-label">Toplam CVE</div>
             <div className="metric-value">{totalCves}</div>
           </div>
           <div className="soft-panel device-summary-tile">
-            <div className="metric-label">Open ports</div>
+            <div className="metric-label">Açık port</div>
             <div className="metric-value">{openPorts.length}</div>
           </div>
           <div className="soft-panel device-summary-tile">
-            <div className="metric-label">Anomaly records</div>
+            <div className="metric-label">Anomali kaydı</div>
             <div className="metric-value">{anomalies.length}</div>
           </div>
         </div>
@@ -318,13 +318,13 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
           <section className="card device-why-panel">
             <div className="section-header">
               <div>
-                <h3 className="command-section-title"><ShieldAlert size={18} /> Why is this device risky?</h3>
+                <h3 className="command-section-title"><ShieldAlert size={18} /> Bu cihaz neden riskli</h3>
               </div>
             </div>
             <div className="device-risk-components">
               <div className="risk-component-row">
                 <div>
-                  <div className="metric-label">Vulnerability component</div>
+                  <div className="metric-label">Zafiyet bileşeni</div>
                   <strong>{formatScore(device.risk_breakdown?.vuln)}</strong>
                 </div>
                 <div className="risk-component-bar">
@@ -333,7 +333,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
               </div>
               <div className="risk-component-row anomaly">
                 <div>
-                  <div className="metric-label">Anomaly component</div>
+                  <div className="metric-label">Anomali bileşeni</div>
                   <strong>{formatScore(device.risk_breakdown?.anomaly)}</strong>
                 </div>
                 <div className="risk-component-bar">
@@ -343,7 +343,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             </div>
             <div className="device-evidence-grid">
               <div className="soft-panel device-evidence-block">
-                <div className="metric-label">Open services</div>
+                <div className="metric-label">Açık servisler</div>
                 <div className="inline-chip-list">
                   {openPorts.length > 0 ? openPorts.slice(0, 8).map((port, index) => (
                     <span key={`${port.port || index}-${index}`} className="neutral-chip">{getPortLabel(port)}</span>
@@ -351,7 +351,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                 </div>
               </div>
               <div className="soft-panel device-evidence-block">
-                <div className="metric-label">Most relevant evidence</div>
+                <div className="metric-label">En ilgili kanıtlar</div>
                 <div className="device-evidence-list">
                   {topEvidence.length > 0 ? topEvidence.map((item) => (
                     <div key={item.key} className="ai-evidence-item">
@@ -367,7 +367,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
           <section className="card device-chart-panel">
             <div className="section-header">
               <div>
-                <h3 className="command-section-title"><TrendingUp size={18} /> Risk History</h3>
+                <h3 className="command-section-title"><TrendingUp size={18} /> Risk Geçmişi</h3>
               </div>
               <span className="badge badge-neutral">{history.length} kayıt</span>
             </div>
@@ -404,7 +404,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
           <section className="card device-events-panel">
             <div className="section-header">
               <div>
-                <h3 className="command-section-title"><Activity size={18} /> Anomaly Records</h3>
+                <h3 className="command-section-title"><Activity size={18} /> Anomali Kayıtları</h3>
               </div>
             </div>
             <div className="device-event-timeline">
@@ -438,7 +438,52 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
           <section className="card analyst-insight-panel">
             <div className="section-header">
               <div>
-                <h3 className="command-section-title"><Sparkles size={18} /> Analyst Insight</h3>
+                <h3 className="command-section-title"><Fingerprint size={18} /> Cihaz Sınıflandırması</h3>
+              </div>
+            </div>
+            <div className="ai-analysis-stack">
+              <div className="soft-panel device-summary-tile">
+                <div className="metric-label">Sınıf</div>
+                <div style={{ marginTop: '8px' }}>
+                  <DeviceClassBadge deviceClass={device.device_class} confidence={device.device_class_confidence} />
+                </div>
+              </div>
+              <div className="analyst-grounding-grid">
+                <div className="soft-panel device-summary-tile">
+                  <div className="metric-label">Sınıflandırma Güveni</div>
+                  <div className="metric-value">
+                      {device.device_class_confidence === null || device.device_class_confidence === undefined
+                        ? '—'
+                        : Number(device.device_class_confidence || 0).toFixed(2)}
+                  </div>
+                </div>
+                <div className="soft-panel device-summary-tile">
+                  <div className="metric-label">Yöntem</div>
+                  <div className="metric-value" style={{ fontSize: '0.92rem' }}>{device.device_class_method || '—'}</div>
+                </div>
+              </div>
+              <div className="soft-panel ai-analysis-section analyst-note">
+                <div className="metric-label">Kanıtlar</div>
+                {Array.isArray(device.device_class_evidence) && device.device_class_evidence.length > 0 ? (
+                  <ul className="ai-analysis-list">
+                    {device.device_class_evidence.map((item, index) => (
+                      <li key={`${device.ip}-class-evidence-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="status-note">Sınıflandırma kanıtı bulunmuyor.</div>
+                )}
+                <div className="status-note" style={{ marginTop: '10px' }}>
+                  Bu bilgi cihaz davranışını bağlama göre yorumlamak için kullanılır; başarı metriği değildir.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="card analyst-insight-panel">
+            <div className="section-header">
+              <div>
+                <h3 className="command-section-title"><Sparkles size={18} /> AI Güvenlik Asistanı</h3>
               </div>
             </div>
             <div className="device-action-row">
@@ -469,13 +514,13 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
             {aiError && !aiLoading && <div className="state-message state-message-danger state-message-compact">{aiError}</div>}
             {aiAnalysis && !aiLoading && (
               <div className="ai-analysis-stack">
-                {aiAnalysis.sections?.risk_explanation && (
+                {aiAnalysis.sections.risk_explanation && (
                   <div className="soft-panel ai-analysis-section analyst-note">
                     <div className="metric-label">{DEVICE_ANALYSIS_VIEWS.risk_explanation.label}</div>
                     <div className="ai-analysis-copy">{aiAnalysis.sections.risk_explanation}</div>
                   </div>
                 )}
-                {aiAnalysis.sections?.anomaly_summary && (
+                {aiAnalysis.sections.anomaly_summary && (
                   <div className="soft-panel ai-analysis-section analyst-note">
                     <div className="metric-label">{DEVICE_ANALYSIS_VIEWS.anomaly_summary.label}</div>
                     <div className="ai-analysis-copy">{aiAnalysis.sections.anomaly_summary}</div>
@@ -483,7 +528,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                 )}
                 <div className="soft-panel ai-analysis-section analyst-note">
                   <div className="metric-label">{DEVICE_ANALYSIS_VIEWS.next_actions.label}</div>
-                  {Array.isArray(aiAnalysis.sections?.next_actions) && aiAnalysis.sections.next_actions.length > 0 ? (
+                  {Array.isArray(aiAnalysis.sections.next_actions) && aiAnalysis.sections.next_actions.length > 0 ? (
                     <ul className="ai-analysis-list">
                       {aiAnalysis.sections.next_actions.map((item, index) => (
                         <li key={`${device.ip}-action-${index}`}>{item}</li>
@@ -501,11 +546,11 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                     <div className="metric-value">{aiAnalysis.grounding_summary?.total_cves ?? 0}</div>
                   </div>
                   <div className="soft-panel device-summary-tile">
-                    <div className="metric-label">Services</div>
+                      <div className="metric-label">Servisler</div>
                     <div className="metric-value">{aiAnalysis.grounding_summary?.open_service_count ?? 0}</div>
                   </div>
                   <div className="soft-panel device-summary-tile">
-                    <div className="metric-label">Anomalies</div>
+                      <div className="metric-label">Anomaliler</div>
                     <div className="metric-value">{aiAnalysis.grounding_summary?.recent_anomaly_count ?? 0}</div>
                   </div>
                 </div>
@@ -516,7 +561,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
           <section className="card service-evidence-panel">
             <div className="section-header">
               <div>
-                <h3 className="command-section-title"><Server size={18} /> Technical Evidence</h3>
+                <h3 className="command-section-title"><Server size={18} /> Teknik Kanıtlar</h3>
               </div>
             </div>
             {openPorts.length > 0 ? (
@@ -550,7 +595,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                                     disabled={Boolean(cveLoadingKey) && !isLoading}
                                     type="button"
                                   >
-                                    {isLoading ? <Loader2 size={14} className="spin" /> : isActive && cveExplanation ? <RefreshCcw size={14} /> : <Sparkles size={14} />}
+                                      {isLoading ? <Loader2 size={14} className="spin" /> : isActive && cveExplanation ? <RefreshCcw size={14} /> : <Sparkles size={14} />}
                                     {isLoading ? 'Açıklanıyor' : isActive && cveExplanation ? 'Yenile' : 'Açıkla'}
                                   </button>
                                 </div>
@@ -568,7 +613,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                               {cveError && cveLoadingKey !== selectedCveKey && (
                                 <div className="state-message state-message-danger state-message-compact">{cveError}</div>
                               )}
-                              {cveExplanation && cveLoadingKey !== selectedCveKey && selectedCveMeta?.cveId && (
+                              {cveExplanation && cveLoadingKey !== selectedCveKey && selectedCveMeta.cveId && (
                                 <div className="soft-panel ai-analysis-section cve-brief">
                                   <div className="section-header">
                                     <div>
@@ -593,7 +638,7 @@ const DeviceDetailView = ({ device, onBack, onOpenAssistant, apiBaseUrl }) => {
                                   <div className="analyst-grounding-grid">
                                     <div className="soft-panel device-summary-tile">
                                       <div className="metric-label">Service</div>
-                                      <div className="metric-value">{cveExplanation.grounding_summary?.service || 'Bilinmiyor'}</div>
+                                      <div className="metric-value">{cveExplanation.grounding_summary.service || 'Bilinmiyor'}</div>
                                     </div>
                                     <div className="soft-panel device-summary-tile">
                                       <div className="metric-label">Port</div>
