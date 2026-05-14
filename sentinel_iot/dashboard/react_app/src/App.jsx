@@ -893,8 +893,8 @@ const App = () => {
             >
               <Sparkles size={18} color="var(--accent-primary)" />
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Güvenlik Asistanı</div>
-                <div style={{ fontWeight: '700' }}>{selectedDevice ? 'Cihaz analizi' : 'Bir cihaz seçin'}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>AI Güvenlik Chatbotu</div>
+                <div style={{ fontWeight: '700' }}>{selectedDevice ? 'Sohbeti aç' : 'Bir cihaz seçin'}</div>
               </div>
             </button>
             <div className="card summary-tile">
