@@ -4,12 +4,20 @@ import time
 from typing import Any, Dict
 
 from sentinel_iot.database.db import save_risk_history, save_scan_history, upsert_device
+from sentinel_iot.ml.device_classifier import classify_device
 from sentinel_iot.scanner.network_scan import scan
 from sentinel_iot.scanner.vulnerability_scan import scan_device
 from sentinel_iot.services.context_risk_engine import ContextualRiskEngine
 from sentinel_iot.services.job_manager import JobManager
 
 logger = logging.getLogger(__name__)
+
+CLASSIFICATION_FALLBACK = {
+    "device_class": "unknown",
+    "device_class_confidence": 0.0,
+    "device_class_evidence": ["Device classification failed; fallback to unknown"],
+    "device_class_method": "rule_based",
+}
 
 
 class ScannerService:
@@ -50,6 +58,29 @@ class ScannerService:
         if "status" in kwargs:
             kwargs.setdefault("is_running", kwargs["status"] in {"pending", "running", "stopping"})
         self.scan_status.update(kwargs)
+
+    @staticmethod
+    def _classification_metadata(discovered_device: Dict[str, Any], open_ports: list) -> Dict[str, Any]:
+        classification_input = {
+            "ip": discovered_device.get("ip"),
+            "mac": discovered_device.get("mac", "Unknown"),
+            "vendor": discovered_device.get("vendor", "Unknown"),
+            "hostname": discovered_device.get("hostname", ""),
+            "discovery_sources": discovered_device.get("discovery_sources", []),
+            "open_ports": open_ports,
+        }
+        try:
+            classification = classify_device(classification_input)
+        except Exception:
+            logger.exception("Device classification failed for %s", discovered_device.get("ip"))
+            return dict(CLASSIFICATION_FALLBACK)
+
+        return {
+            "device_class": classification.get("device_class", "unknown"),
+            "device_class_confidence": classification.get("confidence", 0.0),
+            "device_class_evidence": classification.get("evidence") or ["No device classification evidence"],
+            "device_class_method": classification.get("method", "rule_based"),
+        }
 
     def get_runtime_status(self) -> Dict[str, Any]:
         active_job = self.job_manager.get_active_job("scan")
@@ -148,6 +179,8 @@ class ScannerService:
                     logger.info("Scanning device %s (%s/%s) with profile '%s'", ip, index + 1, total, profile)
                     try:
                         scan_data = scan_device(ip, profile=profile) or []
+                        discovered_device = dict(discovered_device, ip=ip)
+                        classification_metadata = self._classification_metadata(discovered_device, scan_data)
                         # Persist device first so contextual engine can read latest open_ports / asset_type.
                         device_seed = {
                             "ip": ip,
@@ -160,6 +193,7 @@ class ScannerService:
                             "asset_type": "iot",
                             "priority": 1,
                             "risk_breakdown": {"vuln": 0.0, "anomaly": 0.0},
+                            **classification_metadata,
                         }
                         devices_db[ip] = device_seed
                         upsert_device(device_seed)
@@ -180,6 +214,7 @@ class ScannerService:
                                 "vuln": risk.get("vuln_component", 0.0),
                                 "anomaly": risk.get("anomaly_component", 0.0),
                             },
+                            **classification_metadata,
                         }
 
                         devices_db[ip] = device_data

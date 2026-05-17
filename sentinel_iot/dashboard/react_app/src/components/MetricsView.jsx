@@ -1,45 +1,31 @@
 import React from 'react'
-import { AlertTriangle, BarChart3, Database, Info, Shield, Zap } from 'lucide-react'
+import { AlertTriangle, BarChart3, CheckCircle2, Info, Shield } from 'lucide-react'
 
-const percent = (value, digits = 1) => {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Veri Yok'
-  return `${(Number(value) * 100).toFixed(digits)}%`
+const percent = (value, digits = 2) => {
+  const number = Number(value)
+  if (value === null || value === undefined || value === '' || !Number.isFinite(number)) return '—'
+  return `${(number * 100).toFixed(digits)}%`
 }
 
-const valueOrUnknown = (value) => {
-  if (value === null || value === undefined || value === '') return 'Veri Yok'
+const valueOrDash = (value) => {
+  if (value === null || value === undefined || value === '') return '—'
   return String(value)
 }
 
-const renderMetricCard = (label, value, note, tone = 'neutral') => (
-  <div className={`soft-panel validation-metric-card ${tone}`}>
+const metricValue = (metrics, keys) => {
+  for (const key of keys) {
+    if (metrics?.[key] !== null && metrics?.[key] !== undefined) return metrics[key]
+  }
+  return null
+}
+
+const MetricCard = ({ label, value, note }) => (
+  <div className="soft-panel validation-simple-metric">
     <div className="metric-label">{label}</div>
-    <div className="validation-metric-value">{value}</div>
-    {note && <div className="table-secondary">{note}</div>}
+    <strong>{value}</strong>
+    {note && <span>{note}</span>}
   </div>
 )
-
-const renderObjectEvidence = (title, value) => {
-  if (!value) return null
-  const rows = Array.isArray(value)
-    ? value.map((item, index) => [String(index + 1), item])
-    : Object.entries(value)
-  if (rows.length === 0) return null
-
-  return (
-    <div className="soft-panel validation-evidence-block">
-      <div className="metric-label">{title}</div>
-      <div className="validation-kv-list">
-        {rows.map(([key, item]) => (
-          <div key={key}>
-            <span>{key}</span>
-            <strong>{typeof item === 'object' ? JSON.stringify(item) : valueOrUnknown(item)}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 const MetricsState = ({ type, message }) => {
   const isError = type === 'error'
@@ -53,147 +39,122 @@ const MetricsState = ({ type, message }) => {
 }
 
 const MetricsView = ({ systemMetrics, metricsLoading, metricsError }) => {
-  const synthetic = systemMetrics?.synthetic_training_metrics || null
+  const offline = systemMetrics?.synthetic_training_metrics || {}
   const runtime = systemMetrics?.runtime_detection_metrics || null
   const runtimeMetadata = systemMetrics?.runtime_metrics_metadata || null
-  const nbaiot = systemMetrics?.nbaiot_benchmark || null
-  const hasSyntheticMetrics = Boolean(synthetic && synthetic.validation_status !== 'unavailable')
   const hasRuntimeLabels = Boolean(runtime)
-  const hasNbaiot = Boolean(nbaiot?.available && nbaiot?.results?.length > 0)
 
   if (metricsLoading) {
     return (
-      <div className="fade-in validation-view">
-        <div className="validation-hero">
+      <div className="fade-in validation-simple-page">
+        <section className="card validation-simple-hero">
           <div>
             <div className="command-kicker">Doğrulama</div>
-            <h2>Model doğrulama verisi yükleniyor</h2>
+            <h2>Doğrulama bilgileri yükleniyor</h2>
+            <p>Offline metrikler ve canlı runtime durumu alınıyor.</p>
           </div>
-          <LoaderSkeleton />
-        </div>
+        </section>
       </div>
     )
   }
 
-  if (metricsError) return <div className="fade-in validation-view"><MetricsState type="error" message={metricsError} /></div>
-  if (!systemMetrics) return <div className="fade-in validation-view"><MetricsState message="Henüz /metrics yanıtı alınmadı." /></div>
+  if (metricsError) {
+    return <div className="fade-in validation-simple-page"><MetricsState type="error" message={metricsError} /></div>
+  }
+
+  if (!systemMetrics) {
+    return <div className="fade-in validation-simple-page"><MetricsState message="Henüz /metrics yanıtı alınmadı." /></div>
+  }
 
   return (
-    <div className="fade-in validation-view">
-      <section className="validation-hero">
+    <div className="fade-in validation-simple-page">
+      <section className="card validation-simple-hero">
         <div>
-          <div className="command-kicker">Sentinel-IoT v6 Doğrulama</div>
-          <h2>Offline Model Doğrulama ve Canlı Runtime Durumu</h2>
-          <div className="table-secondary">Offline metrikler etiketli dataset sonucudur; canlı ekranlar inference skoru, risk skoru ve karar gösterir.</div>
+          <div className="command-kicker">Doğrulama</div>
+          <h2>Model Metrikleri ve Canlı Durum</h2>
+          <p>
+            Bu sayfa sadece doğrulama için gerekli temel bilgileri gösterir. Offline metrikler etiketli veri setinden gelir;
+            canlı trafik ekranındaki skorlar runtime accuracy/F1 metriği değildir.
+          </p>
         </div>
-        <div className="validation-model-meta">
-          <div className="soft-panel device-summary-tile"><div className="metric-label">Model versiyonu</div><div className="metric-value">{valueOrUnknown(systemMetrics.model_version)}</div></div>
-          <div className="soft-panel device-summary-tile"><div className="metric-label">Son eğitim</div><div className="metric-value">{valueOrUnknown(systemMetrics.last_training)}</div></div>
-          <div className="soft-panel device-summary-tile"><div className="metric-label">Canlı metrik kaynağı</div><div className="metric-value">{valueOrUnknown(runtimeMetadata?.source)}</div></div>
+        <div className="validation-simple-model">
+          <div>
+            <span>Aktif model</span>
+            <strong>{valueOrDash(systemMetrics.model_version)}</strong>
+          </div>
+          <div>
+            <span>Son eğitim</span>
+            <strong>{valueOrDash(systemMetrics.last_training)}</strong>
+          </div>
         </div>
       </section>
 
-      <div className="validation-grid">
-        <section className="card validation-panel">
-          <div className="section-header">
-            <h3 className="command-section-title"><Zap size={18} /> Offline Model Doğrulama</h3>
-            <span className={`badge ${hasSyntheticMetrics ? 'badge-success' : 'badge-warning'}`}>
-              {synthetic?.validation_status === 'validated' ? 'Doğrulandı' : 'Veri Yok'}
-            </span>
+      <section className="card validation-simple-section">
+        <div className="section-header">
+          <div>
+            <h3 className="command-section-title"><CheckCircle2 size={18} /> Offline Validation Metrikleri</h3>
+            <div className="table-secondary">Etiketli test/veri seti üzerinde hesaplanan metrikler.</div>
           </div>
-          <div className="status-note">Bu değerler yalnızca etiketli eğitim/doğrulama verisinden gelir; canlı runtime başarı metriği değildir.</div>
-          {synthetic ? (
-            <>
-              <div className="validation-metric-grid">
-                {renderMetricCard('Precision', percent(synthetic.precision), 'Etiketli offline test', 'info')}
-                {renderMetricCard('Recall', percent(synthetic.recall), 'Etiketli offline test', 'info')}
-                {renderMetricCard('F1 Score', percent(synthetic.f1_score), 'Etiketli offline test', 'success')}
-                {renderMetricCard('Accuracy', percent(synthetic.accuracy), 'Etiketli offline test')}
-                {renderMetricCard('Avg Precision', percent(synthetic.average_precision), 'Etiketli offline test')}
-              </div>
-              <div className="validation-evidence-grid">
-                {renderObjectEvidence('Confusion matrix', synthetic.confusion_matrix)}
-                {renderObjectEvidence('Dataset / senaryo kırılımı', synthetic.scenario_breakdown || synthetic.scenarios)}
-              </div>
-            </>
-          ) : <MetricsState message="Offline validation alanı /metrics yanıtında bulunamadı." />}
-        </section>
+        </div>
 
-        <section className="card validation-panel runtime-panel">
-          <div className="section-header">
-            <h3 className="command-section-title"><Shield size={18} /> Kontrollü Canlı Doğrulama</h3>
-            <span className={`badge ${hasRuntimeLabels ? 'badge-success' : 'badge-neutral'}`}>
-              {hasRuntimeLabels ? 'Canlı Doğrulama Aktif' : 'Etiketli Veri Bekleniyor'}
-            </span>
+        <div className="validation-simple-grid">
+          <MetricCard label="Accuracy" value={percent(metricValue(offline, ['accuracy']))} />
+          <MetricCard label="Precision" value={percent(metricValue(offline, ['precision']))} />
+          <MetricCard label="Recall" value={percent(metricValue(offline, ['recall']))} />
+          <MetricCard label="F1" value={percent(metricValue(offline, ['f1_score', 'f1']))} />
+        </div>
+
+        <div className="validation-simple-note">
+          <Info size={16} />
+          <span>
+            CICIoT2023 RandomForest raporu `evaluation/results/ciciot2023_random_forest_report.json` altında tutulur.
+            Bu değerler canlı runtime başarısı değildir.
+          </span>
+        </div>
+      </section>
+
+      <section className="card validation-simple-section">
+        <div className="section-header">
+          <div>
+            <h3 className="command-section-title"><Shield size={18} /> Canlı Runtime Durumu</h3>
+            <div className="table-secondary">Canlı izleme inference skoru, final risk ve karar üretir.</div>
           </div>
-          <div className="status-note">Precision, recall ve F1 yalnızca manuel etiketli canlı zaman aralıkları varsa gösterilir.</div>
-          {hasRuntimeLabels ? (
-            <div className="validation-metric-grid">
-              {renderMetricCard('True Positives', valueOrUnknown(runtime.true_positives), 'Etiketli canlı pencere içinde', 'success')}
-              {renderMetricCard('False Positives', valueOrUnknown(runtime.false_positives), 'Etiketli canlı pencere içinde', 'warning')}
-              {renderMetricCard('Precision', percent(runtime.precision), 'Kontrollü canlı doğrulama')}
-              {renderMetricCard('Recall', percent(runtime.recall), 'Kontrollü canlı doğrulama')}
-              {renderMetricCard('F1 Score', percent(runtime.f1_score), 'Kontrollü canlı doğrulama')}
+          <span className={`badge ${hasRuntimeLabels ? 'badge-success' : 'badge-neutral'}`}>
+            {hasRuntimeLabels ? 'Etiketli pencere var' : 'Etiketli veri yok'}
+          </span>
+        </div>
+
+        {hasRuntimeLabels ? (
+          <div className="validation-simple-grid">
+            <MetricCard label="Precision" value={percent(runtime.precision)} note="Kontrollü canlı doğrulama" />
+            <MetricCard label="Recall" value={percent(runtime.recall)} note="Kontrollü canlı doğrulama" />
+            <MetricCard label="F1" value={percent(runtime.f1_score ?? runtime.f1)} note="Kontrollü canlı doğrulama" />
+            <MetricCard label="False Positive" value={valueOrDash(runtime.false_positives)} note="Etiketli pencere" />
+          </div>
+        ) : (
+          <div className="validation-runtime-empty">
+            <AlertTriangle size={22} />
+            <div>
+              <strong>Canlı accuracy / F1 hesaplanmaz</strong>
+              <p>
+                Canlı trafikte ground-truth etiketi olmadığı için runtime precision, recall veya F1 gösterilmez.
+                {runtimeMetadata?.note ? ` ${runtimeMetadata.note}` : ''}
+              </p>
             </div>
-          ) : (
-            <div className="runtime-limitation">
-              <div className="runtime-limitation-icon"><AlertTriangle size={22} /></div>
-              <div>
-                <h4>Canlı doğrulama metriği yok</h4>
-                <p>Runtime scoring akışı çalışabilir, ancak etiketli olay penceresi olmadan accuracy/F1 üretilmez.</p>
-              </div>
-            </div>
-          )}
-        </section>
-      </div>
-
-      {hasNbaiot && (
-        <section className="card validation-panel benchmark-panel">
-          <div className="section-header">
-            <h3 className="command-section-title"><Database size={18} /> Ek Offline Benchmark Sonuçları</h3>
-            <span className="badge badge-success">{nbaiot.results.length} model</span>
           </div>
-          <div className="status-note">Bu bölüm canlı runtime sonucu değildir; yalnızca ayrı benchmark kayıtları varsa gösterilir.</div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="validation-benchmark-table">
-              <thead><tr><th>Model</th><th>Dataset</th><th>Samples</th><th>Features</th><th>F1</th><th>Precision</th><th>Recall</th><th>Accuracy</th><th>FPR</th></tr></thead>
-              <tbody>
-                {nbaiot.results.map((r, idx) => (
-                  <tr key={idx}>
-                    <td><strong>{r.model}</strong></td>
-                    <td className="table-secondary">{r.dataset || '—'}</td>
-                    <td>{r.sample_count.toLocaleString() || '—'}</td>
-                    <td>{r.feature_count || '—'}</td>
-                    <td className="metric-highlight">{percent(r.f1_score)}</td>
-                    <td>{percent(r.precision)}</td>
-                    <td>{percent(r.recall)}</td>
-                    <td>{percent(r.accuracy)}</td>
-                    <td>{r.false_positive_rate !== null && r.false_positive_rate !== undefined ? percent(r.false_positive_rate) : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      <section className="card validation-panel">
-        <div className="section-header"><h3 className="command-section-title"><Info size={18} /> Canlı Skorlama Notu</h3></div>
-        <div className="status-note">
-          Live flow ekranındaki ML score, reward, penalty ve final risk alanları inference sonrası operasyonel risk kalibrasyonudur.
-          Bu alanlar canlı accuracy, precision, recall veya F1 metriği olarak yorumlanmamalıdır.
+      <section className="card validation-simple-section">
+        <h3 className="command-section-title"><Info size={18} /> Kısa Yorum</h3>
+        <div className="validation-simple-bullets">
+          <div>Offline metrikler modelin etiketli dataset üzerindeki sonucudur.</div>
+          <div>Canlı ekranda görülen ML skoru, risk ve karar runtime inference çıktısıdır.</div>
+          <div>Device class ve sınıflandırma güveni başarı metriği değildir; sadece bağlam sağlar.</div>
         </div>
       </section>
     </div>
   )
 }
-
-const LoaderSkeleton = () => (
-  <div className="validation-model-meta">
-    <div className="skeleton skeleton-text"></div>
-    <div className="skeleton skeleton-text"></div>
-    <div className="skeleton skeleton-text"></div>
-  </div>
-)
 
 export default MetricsView

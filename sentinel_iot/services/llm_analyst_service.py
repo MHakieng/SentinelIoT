@@ -29,11 +29,17 @@ class LLMAnalystService:
         context = self.context_service.build_device_analysis_context(request.device_ip)
         raw_response = self.provider.generate(
             DEVICE_ANALYSIS_SYSTEM_PROMPT,
-            build_device_analysis_user_prompt(context, include_sections),
+            build_device_analysis_user_prompt(
+                context,
+                include_sections,
+                request.user_question,
+                [self._model_to_dict(item) for item in request.conversation_history],
+            ),
         )
         parsed = self._parse_json_response(raw_response)
 
         sections = DeviceAnalysisSections(
+            direct_answer=parsed.get("direct_answer"),
             risk_explanation=parsed.get("risk_explanation") if "risk_explanation" in include_sections else None,
             anomaly_summary=parsed.get("anomaly_summary") if "anomaly_summary" in include_sections else None,
             next_actions=self._normalize_string_list(parsed.get("next_actions")) if "next_actions" in include_sections else [],
@@ -45,7 +51,7 @@ class LLMAnalystService:
             grounding_summary=context["grounding_summary"],
             evidence_used=[EvidenceItem(**item) for item in context["evidence_used"]],
             warnings=context["warnings"],
-            limitations=self._normalize_string_list(parsed.get("limitations")),
+            limitations=self._normalize_string_list(parsed.get("limitations"), max_items=4),
         )
 
     def explain_cve(self, request: CVEExplanationRequest) -> CVEExplanationResponse:
@@ -66,10 +72,10 @@ class LLMAnalystService:
             title=parsed.get("title") or request.cve_id,
             plain_language_summary=parsed.get("plain_language_summary") or "Ozet dondurulmedi.",
             why_it_matters_for_this_device=parsed.get("why_it_matters_for_this_device") or "Cihaza ozel aciklama dondurulmedi.",
-            recommended_actions=self._normalize_string_list(parsed.get("recommended_actions")),
+            recommended_actions=self._normalize_string_list(parsed.get("recommended_actions"), max_items=4),
             grounding_summary=context["grounding_summary"],
             evidence_used=[EvidenceItem(**item) for item in context["evidence_used"]],
-            limitations=context["warnings"] + self._normalize_string_list(parsed.get("limitations")),
+            limitations=context["warnings"] + self._normalize_string_list(parsed.get("limitations"), max_items=4),
         )
 
     def _parse_json_response(self, raw_response: str) -> Dict[str, Any]:
@@ -88,7 +94,14 @@ class LLMAnalystService:
         except json.JSONDecodeError as exc:
             raise ValueError("LLM provider returned invalid JSON.") from exc
 
-    def _normalize_string_list(self, value: Any):
+    def _normalize_string_list(self, value: Any, max_items: int = 4):
         if not isinstance(value, list):
             return []
-        return [str(item).strip() for item in value if str(item).strip()]
+        return [str(item).strip()[:280] for item in value if str(item).strip()][:max_items]
+
+    def _model_to_dict(self, value: Any) -> Dict[str, Any]:
+        if hasattr(value, "model_dump"):
+            return value.model_dump()
+        if hasattr(value, "dict"):
+            return value.dict()
+        return dict(value)

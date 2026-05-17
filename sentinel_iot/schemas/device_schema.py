@@ -18,6 +18,10 @@ class DeviceResult(DeviceBase):
     open_ports: List[Dict[str, Any]] = []
     total_cves: int = 0
     risk_breakdown: DeviceRisk = Field(default_factory=lambda: DeviceRisk())
+    device_class: Optional[str] = None
+    device_class_confidence: Optional[float] = None
+    device_class_evidence: Optional[List[str]] = None
+    device_class_method: Optional[str] = None
 
 class DeviceHistory(BaseModel):
     timestamp: str

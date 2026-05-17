@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from sentinel_iot.api.dependencies import get_llm_analyst_service
 from sentinel_iot.api.main import app
 from sentinel_iot.schemas.llm_schema import (
+    ChatHistoryItem,
     CVEExplanationGroundingSummary,
     CVEExplanationRequest,
     CVEExplanationResponse,
@@ -21,6 +22,7 @@ class FakeAnalystService:
         return DeviceAnalysisResponse(
             device_ip=request.device_ip,
             sections=DeviceAnalysisSections(
+                direct_answer="Bu cihazda riskin ana nedeni açık servis ve CVE kanıtlarıdır.",
                 risk_explanation="Risk is elevated because several exposed services and CVEs are recorded.",
                 anomaly_summary="Recent anomaly logs show repeated monitoring events.",
                 next_actions=["Review exposed services", "Validate recent monitoring events"],
@@ -59,9 +61,16 @@ client = TestClient(app)
 
 
 class FakeProvider:
+    def __init__(self):
+        self.last_system_prompt = None
+        self.last_user_prompt = None
+
     def generate(self, system_prompt: str, user_prompt: str) -> str:
+        self.last_system_prompt = system_prompt
+        self.last_user_prompt = user_prompt
         return """
         {
+          "direct_answer": "Bu cihaz için ana gözlem açık servis ve CVE kaynaklı riskin yüksek olmasıdır.",
           "risk_explanation": "Observed risk is elevated because exposed services and recorded CVEs are present in the current device history.",
           "anomaly_summary": "Observed anomaly logs show repeated monitoring events in recent history.",
           "next_actions": ["Review whether the exposed services are all required.", "Confirm whether the recent monitoring activity matches expected device behavior."],
@@ -141,13 +150,68 @@ class FakeContextService:
 def test_llm_analyst_service_parses_mocked_provider_response():
     provider = FakeProvider()
     service = LLMAnalystService(provider, FakeContextService())
-    response = service.analyze_device(DeviceAnalysisRequest(device_ip="10.0.0.25"))
+    response = service.analyze_device(DeviceAnalysisRequest(device_ip="10.0.0.25", user_question="Bu cihaz neden riskli?"))
 
     assert response.device_ip == "10.0.0.25"
+    assert response.sections.direct_answer.startswith("Bu cihaz")
     assert "observed" in response.sections.risk_explanation.lower()
     assert len(response.sections.next_actions) == 2
     assert response.grounding_summary.total_cves == 3
     assert len(response.evidence_used) == 2
+    assert "Bu cihaz neden riskli?" in provider.last_user_prompt
+    assert "Device-class confidence is classification confidence only" in provider.last_system_prompt
+
+
+def test_device_analysis_prompt_is_grounded_and_metric_safe():
+    provider = FakeProvider()
+    service = LLMAnalystService(provider, FakeContextService())
+    service.analyze_device(
+        DeviceAnalysisRequest(
+            device_ip="10.0.0.25",
+            user_question="Canlı doğruluk oranı kaç?",
+            include_sections=["risk_explanation"],
+        )
+    )
+
+    assert "Canlı doğruluk oranı kaç?" in provider.last_user_prompt
+    assert '"direct_answer": string' in provider.last_user_prompt
+    assert "Return exactly this JSON object shape" in provider.last_user_prompt
+    assert "Do not present live runtime accuracy" in provider.last_system_prompt
+
+
+def test_chat_prompt_defaults_to_question_specific_answer():
+    provider = FakeProvider()
+    service = LLMAnalystService(provider, FakeContextService())
+    service.analyze_device(
+        DeviceAnalysisRequest(
+            device_ip="10.0.0.25",
+            user_question="Bu port gerekli mi?",
+            include_sections=["risk_explanation"],
+        )
+    )
+
+    assert "direct_answer should be enough for a chat response" in provider.last_user_prompt
+    assert "avoid adding unnecessary operational checklist language" in provider.last_system_prompt
+
+
+def test_device_analysis_prompt_includes_conversation_history():
+    provider = FakeProvider()
+    service = LLMAnalystService(provider, FakeContextService())
+    service.analyze_device(
+        DeviceAnalysisRequest(
+            device_ip="10.0.0.25",
+            user_question="Peki SNMP için ne yapmalıyım?",
+            include_sections=["risk_explanation", "next_actions"],
+            conversation_history=[
+                ChatHistoryItem(role="user", content="Bu cihazda hangi portlar önemli?"),
+                ChatHistoryItem(role="assistant", content="SSH ve SNMP daha dikkatli incelenmeli."),
+            ],
+        )
+    )
+
+    assert "conversation_history" in provider.last_user_prompt
+    assert "SSH ve SNMP" in provider.last_user_prompt
+    assert "Treat this as a multi-turn chat" in provider.last_user_prompt
 
 
 def test_llm_analyst_service_builds_cve_explanation():

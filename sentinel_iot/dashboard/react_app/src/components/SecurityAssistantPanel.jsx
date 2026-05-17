@@ -1,46 +1,35 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, MessageCircle, Send, Shield, Sparkles, X } from 'lucide-react'
-import { fetchDeviceAnalysis, clearDeviceAnalysis } from '../lib/deviceAnalysisClient'
+import { clearDeviceAnalysis, fetchDeviceAnalysis } from '../lib/deviceAnalysisClient'
 import { describeLlmUiFailure } from '../lib/llmUiContent'
 import { translateRiskStatus } from '../lib/uiText'
 import DeviceClassBadge from './DeviceClassBadge'
 
-/* ------------------------------------------------------------------ */
-/*  Quick-action definitions                                          */
-/* ------------------------------------------------------------------ */
-
 const QUICK_ACTIONS = [
-  { id: 'explain',   label: 'Bu cihazı açıkla',        sections: ['risk_explanation'], icon: '🔍' },
-  { id: 'risk',      label: 'Risk neden yüksek?',       sections: ['risk_explanation'], icon: '⚠️' },
-  { id: 'ports',     label: 'Açık portları yorumla',     sections: ['risk_explanation'], icon: '🔌' },
-  { id: 'cve',       label: 'CVE riskini özetle',       sections: ['risk_explanation', 'next_actions'], icon: '🛡️' },
-  { id: 'actions',   label: 'Önerilen aksiyonları yaz',  sections: ['next_actions'], icon: '📋' },
-  { id: 'anomaly',   label: 'Son anomalileri özetle',    sections: ['anomaly_summary'], icon: '📡' },
+  { id: 'explain', label: 'Bu cihazı açıkla', sections: ['risk_explanation'], tag: 'Analiz' },
+  { id: 'risk', label: 'Risk neden yüksek?', sections: ['risk_explanation'], tag: 'Risk' },
+  { id: 'ports', label: 'Açık portları yorumla', sections: ['risk_explanation'], tag: 'Port' },
+  { id: 'cve', label: 'CVE riskini özetle', sections: ['risk_explanation', 'next_actions'], tag: 'CVE' },
+  { id: 'actions', label: 'Önerilen aksiyonları yaz', sections: ['next_actions'], tag: 'Aksiyon' },
+  { id: 'anomaly', label: 'Son anomalileri özetle', sections: ['anomaly_summary'], tag: 'Akış' },
 ]
 
-/* ------------------------------------------------------------------ */
-/*  Intent matching – maps free-text user input to analysis sections   */
-/* ------------------------------------------------------------------ */
-
 const INTENT_KEYWORDS = [
-  { pattern: /risk|neden.*riskli|tehlike|tehdit/i,           sections: ['risk_explanation'] },
-  { pattern: /port|servis|açık.*port|hizmet/i,               sections: ['risk_explanation'] },
-  { pattern: /cve|zafiyet|güvenlik açığı|vulnerability/i,    sections: ['risk_explanation', 'next_actions'] },
-  { pattern: /anomali|anomaly|anormal|şüpheli|flow/i,       sections: ['anomaly_summary'] },
+  { pattern: /risk|neden.*riskli|tehlike|tehdit/i, sections: ['risk_explanation'] },
+  { pattern: /port|servis|açık.*port|hizmet/i, sections: ['risk_explanation'] },
+  { pattern: /cve|zafiyet|güvenlik açığı|vulnerability/i, sections: ['risk_explanation', 'next_actions'] },
+  { pattern: /anomali|anomaly|anormal|şüpheli|flow|akış/i, sections: ['anomaly_summary'] },
   { pattern: /aksiyon|öneri|adım|yapılacak|tavsiye|action/i, sections: ['next_actions'] },
-  { pattern: /açıkla|anlat|özetle|nedir|durum/i,             sections: ['risk_explanation', 'anomaly_summary', 'next_actions'] },
+  { pattern: /detaylı|tam rapor|genel rapor|hepsini|tümünü/i, sections: ['risk_explanation', 'anomaly_summary', 'next_actions'] },
+  { pattern: /açıkla|anlat|özetle|nedir|durum/i, sections: ['risk_explanation'] },
 ]
 
 const matchIntent = (text) => {
   for (const { pattern, sections } of INTENT_KEYWORDS) {
     if (pattern.test(text)) return sections
   }
-  return ['risk_explanation', 'anomaly_summary', 'next_actions']
+  return ['risk_explanation']
 }
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 const formatTime = () => {
   const now = new Date()
@@ -49,8 +38,15 @@ const formatTime = () => {
 
 const buildBotContent = (data, sections) => {
   const parts = []
+  const hasDirectAnswer = Boolean(data.sections?.direct_answer)
+  const wantsDetailedContext = sections.length > 1
 
-  if (sections.includes('risk_explanation') && data.sections?.risk_explanation) {
+  if (data.sections?.direct_answer) {
+    parts.push(data.sections.direct_answer)
+  }
+
+  if (sections.includes('risk_explanation') && data.sections?.risk_explanation && (!hasDirectAnswer || wantsDetailedContext)) {
+    if (parts.length > 0) parts.push('')
     parts.push(data.sections.risk_explanation)
   }
 
@@ -62,17 +58,25 @@ const buildBotContent = (data, sections) => {
   if (sections.includes('next_actions') && Array.isArray(data.sections?.next_actions) && data.sections.next_actions.length > 0) {
     if (parts.length > 0) parts.push('')
     parts.push('Önerilen adımlar:')
-    data.sections.next_actions.forEach((item, i) => {
-      parts.push(`${i + 1}. ${item}`)
+    data.sections.next_actions.slice(0, 4).forEach((item, index) => {
+      parts.push(`${index + 1}. ${item}`)
     })
   }
 
-  if (data.warnings?.length > 0 || data.limitations?.length > 0) {
-    const notes = [...(data.warnings || []), ...(data.limitations || [])]
-    if (notes.length > 0) {
-      parts.push('')
-      parts.push('⚠️ ' + notes.join(' '))
-    }
+  const notes = [...(data.warnings || []), ...(data.limitations || [])]
+    .filter(Boolean)
+    .filter((note) => {
+      const text = String(note).toLowerCase()
+      return !(
+        text.includes('no recent anomaly') ||
+        text.includes('live monitor runtime') ||
+        text.includes('canlı izleme') ||
+        text.includes('monitor runtime')
+      )
+    })
+  if (notes.length > 0) {
+    parts.push('')
+    parts.push(`Not: ${notes.slice(0, 3).join(' ')}`)
   }
 
   return parts.length > 0
@@ -94,9 +98,15 @@ const formatDeviceContext = (device) => {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+const buildConversationHistory = (messages) => (
+  messages
+    .filter((message) => message.type === 'user' || message.type === 'bot')
+    .slice(-8)
+    .map((message) => ({
+      role: message.type === 'user' ? 'user' : 'assistant',
+      content: String(message.content || '').slice(0, 900),
+    }))
+)
 
 const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
   const [messages, setMessages] = useState([])
@@ -106,49 +116,35 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
   const inputRef = useRef(null)
   const prevDeviceIpRef = useRef(null)
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages, isTyping])
 
-  // Focus input when panel opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 250)
     }
   }, [isOpen])
 
-  // Context change detection
   useEffect(() => {
     const prevIp = prevDeviceIpRef.current
     const newIp = device?.ip || null
 
-    if (prevIp !== newIp) {
-      prevDeviceIpRef.current = newIp
+    if (prevIp === newIp) return
+    prevDeviceIpRef.current = newIp
 
-      if (newIp && prevIp !== null) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            type: 'system',
-            content: `Bağlam değişti: ${newIp} cihazı seçildi.`,
-            time: formatTime(),
-          },
-        ])
-      } else if (newIp && prevIp === null) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            type: 'system',
-            content: `${newIp} cihazı bağlam olarak seçildi.`,
-            time: formatTime(),
-          },
-        ])
-      }
+    if (newIp && prevIp !== null) {
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now(), type: 'system', content: `Bağlam değişti: ${newIp} cihazı seçildi.`, time: formatTime() },
+      ])
+    } else if (newIp && prevIp === null) {
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now(), type: 'system', content: `${newIp} cihazı bağlam olarak seçildi.`, time: formatTime() },
+      ])
     }
   }, [device?.ip])
 
@@ -162,7 +158,6 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
             type: 'bot',
             content: 'Analiz için önce bir cihaz seçmeniz gerekiyor. Cihaz listesinden bir cihaz tıklayın.',
             time: formatTime(),
-            isInfo: true,
           },
         ])
         return
@@ -176,16 +171,17 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
           apiBaseUrl,
           deviceIp: device.ip,
           forceRefresh: true,
+          includeSections: sections,
+          userQuestion: userText,
+          conversationHistory: buildConversationHistory(messages),
         })
-
-        const content = buildBotContent(data, sections)
 
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now(),
             type: 'bot',
-            content,
+            content: buildBotContent(data, sections),
             time: formatTime(),
             grounding: data.grounding_summary || null,
           },
@@ -197,18 +193,13 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
         )
         setMessages((prev) => [
           ...prev,
-          {
-            id: Date.now(),
-            type: 'error',
-            content: errorMsg,
-            time: formatTime(),
-          },
+          { id: Date.now(), type: 'error', content: errorMsg, time: formatTime() },
         ])
       } finally {
         setIsTyping(false)
       }
     },
-    [device?.ip, apiBaseUrl]
+    [device?.ip, apiBaseUrl, messages]
   )
 
   const handleSend = useCallback(() => {
@@ -220,9 +211,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
       { id: Date.now(), type: 'user', content: text, time: formatTime() },
     ])
     setInputValue('')
-
-    const sections = matchIntent(text)
-    sendToBackend(text, sections)
+    sendToBackend(text, matchIntent(text))
   }, [inputValue, sendToBackend])
 
   const handleQuickAction = useCallback(
@@ -236,9 +225,9 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
     [sendToBackend]
   )
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
       handleSend()
     }
   }
@@ -249,24 +238,22 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
     <div className={`assistant-overlay ${isOpen ? 'open' : ''}`} aria-hidden={!isOpen}>
       <div className="assistant-backdrop" onClick={onClose} />
       <aside className="assistant-panel">
-        {/* Header */}
         <div className="assistant-panel-header">
           <div>
-            <div className="assistant-panel-kicker">AI Güvenlik Chatbotu</div>
+            <div className="assistant-panel-kicker">AI Güvenlik Asistanı</div>
             <h3 className="assistant-panel-title">
               <Sparkles size={18} style={{ verticalAlign: 'middle', marginRight: '6px', color: 'var(--accent-primary)' }} />
               Güvenlik Analiz Asistanı
             </h3>
             <div className="status-note" style={{ marginTop: '6px' }}>
-              Cihaz, CVE, açık port ve canlı akış kanıtlarına göre güvenlik analizi yapar.
+              Cihaz, CVE, açık port ve canlı akış kanıtlarına göre yanıt üretir.
             </div>
           </div>
-          <button className="assistant-close" onClick={onClose} aria-label="Chatbotu kapat">
+          <button className="assistant-close" onClick={onClose} aria-label="Asistanı kapat">
             <X size={18} />
           </button>
         </div>
 
-        {/* Context Card */}
         <div className="chat-context-card">
           {ctx ? (
             <>
@@ -297,7 +284,6 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
           )}
         </div>
 
-        {/* Quick Actions */}
         <div className="chat-quick-actions">
           {QUICK_ACTIONS.map((action) => (
             <button
@@ -307,18 +293,17 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
               disabled={!device || isTyping}
               title={!device ? 'Önce bir cihaz seçin' : action.label}
             >
-              <span style={{ marginRight: '4px' }}>{action.icon}</span>
+              <span style={{ marginRight: '4px' }}>{action.tag}</span>
               {action.label}
             </button>
           ))}
         </div>
 
-        {/* Chat Messages */}
         <div className="chat-messages" ref={scrollRef}>
           {messages.length === 0 && !isTyping && (
             <div className="chat-empty-state">
               <Sparkles size={32} style={{ color: 'var(--accent-primary)', marginBottom: '12px' }} />
-              <div className="chat-empty-title">AI Güvenlik Chatbotu</div>
+              <div className="chat-empty-title">AI Güvenlik Asistanı</div>
               <div className="chat-empty-copy">
                 {device
                   ? 'Hızlı aksiyon butonlarını kullanarak veya mesaj yazarak güvenlik analizi başlatabilirsiniz.'
@@ -359,7 +344,6 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
               )
             }
 
-            // bot message
             return (
               <div key={msg.id} className="chat-bubble-row chat-bubble-row-bot">
                 <div className="chat-bubble-avatar">
@@ -367,10 +351,10 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
                 </div>
                 <div className="chat-bubble chat-bubble-bot">
                   <div className="chat-bubble-text">
-                    {msg.content.split('\n').map((line, i) => (
-                      <React.Fragment key={i}>
+                    {msg.content.split('\n').map((line, index) => (
+                      <React.Fragment key={index}>
                         {line}
-                        {i < msg.content.split('\n').length - 1 && <br />}
+                        {index < msg.content.split('\n').length - 1 && <br />}
                       </React.Fragment>
                     ))}
                   </div>
@@ -401,7 +385,6 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
           )}
         </div>
 
-        {/* Input Area */}
         <div className="chat-input-area">
           <div className="chat-footer-note">
             AI yanıtları mevcut SentinelIoT kanıtlarına dayanır. Bu asistan karar destek amaçlıdır.
@@ -412,7 +395,7 @@ const SecurityAssistantPanel = ({ isOpen, onClose, device, apiBaseUrl }) => {
               className="chat-input"
               placeholder={device ? 'Bu cihaz neden riskli? / CVE riskini özetle...' : 'Önce bir cihaz seçin...'}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(event) => setInputValue(event.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isTyping}
               rows={1}

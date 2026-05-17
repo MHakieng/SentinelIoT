@@ -14,13 +14,14 @@ import {
 import { formatTimelineTime } from './eventTimelineUtils'
 
 const EVENT_META = {
-  SCAN_STARTED: { label: 'Scan Started', icon: Search },
-  SCAN_COMPLETED: { label: 'Scan Completed', icon: CheckCircle2 },
-  DEVICE_DISCOVERED: { label: 'Device', icon: Cpu },
-  VULNERABILITY_FOUND: { label: 'Vulnerability', icon: ShieldAlert },
-  ANOMALY_DETECTED: { label: 'Anomaly', icon: Radar },
-  RISK_INCREASED: { label: 'Risk Increased', icon: TrendingUp },
-  AI_ANALYSIS_GENERATED: { label: 'AI Analysis', icon: Sparkles },
+  SCAN_STARTED: { label: 'Tarama Başladı', icon: Search },
+  SCAN_COMPLETED: { label: 'Tarama Tamamlandı', icon: CheckCircle2 },
+  DEVICE_DISCOVERED: { label: 'Cihaz', icon: Cpu },
+  VULNERABILITY_FOUND: { label: 'Zafiyet', icon: ShieldAlert },
+  ANOMALY_DETECTED: { label: 'Anomali', icon: Radar },
+  FLOW_RISK_REPORTED: { label: 'Akış Riski', icon: Radar },
+  RISK_INCREASED: { label: 'Risk Arttı', icon: TrendingUp },
+  AI_ANALYSIS_GENERATED: { label: 'AI Analizi', icon: Sparkles },
 }
 
 const severityLabel = {
@@ -49,7 +50,7 @@ const SecurityEventTimeline = ({ events = [], loading = false, error = null }) =
       </div>
     ) : (
       events.map((event) => {
-        const meta = EVENT_META[event.type] || { label: event.type || 'Event', icon: Activity }
+        const meta = EVENT_META[event.type] || { label: event.type || 'Olay', icon: Activity }
         const Icon = meta.icon
         const severity = event.severity || 'info'
 

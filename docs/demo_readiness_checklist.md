@@ -83,6 +83,8 @@
 - [ ] Gerekirse PowerShell/terminal admin olarak acildi.
 - [ ] Dogru network interface secimi kontrol edildi.
 - [ ] Packet capture tum agi garanti etmez siniri savunmada soyleniyor.
+- [ ] `/traffic/flows/scores` response'unda `final_flow_risk`, `severity`, `reasons`, `decision` ve opsiyonel device class context alanlari gorulebiliyor.
+- [ ] Device-class-aware scoring runtime metric olarak degil, aciklanabilir risk kalibrasyonu olarak anlatiliyor.
 - [ ] Live monitor bos donerse fallback anlatim hazir:
   - "Bu ortamda interface'in gordugu trafik sinirli olabilir."
   - "Offline benchmark ve test suite sistemin dogrulama kismidir."
@@ -111,4 +113,6 @@
 - [ ] "N-BaIoT modeli canli sistemde calisiyor" denmiyor.
 - [ ] "Random split sonucu canli sistem basarisidir" denmiyor.
 - [ ] "CVE/CVSS her zaman kesin cikarilir" denmiyor.
+- [ ] "`device_class_confidence` accuracy/F1 degildir" acik soyleniyor.
+- [ ] "Device-class-aware scoring ML modelini yeniden egitmez; sadece runtime risk kalibrasyonu yapar" deniyor.
 - [ ] "Bu proje akademik prototip + offline benchmark calismasi" olarak konumlandiriliyor.

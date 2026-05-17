@@ -11,8 +11,15 @@ class DeviceAnalysisSection(str, Enum):
     next_actions = "next_actions"
 
 
+class ChatHistoryItem(BaseModel):
+    role: str
+    content: str
+
+
 class DeviceAnalysisRequest(BaseModel):
     device_ip: str
+    user_question: Optional[str] = None
+    conversation_history: List[ChatHistoryItem] = Field(default_factory=list)
     include_sections: List[DeviceAnalysisSection] = Field(
         default_factory=lambda: [
             DeviceAnalysisSection.risk_explanation,
@@ -23,6 +30,7 @@ class DeviceAnalysisRequest(BaseModel):
 
 
 class DeviceAnalysisSections(BaseModel):
+    direct_answer: Optional[str] = None
     risk_explanation: Optional[str] = None
     anomaly_summary: Optional[str] = None
     next_actions: List[str] = Field(default_factory=list)

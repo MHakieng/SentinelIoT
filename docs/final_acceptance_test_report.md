@@ -76,3 +76,24 @@ Aktif FAIL kalmadi.
 5. Build basarili ama JS chunk buyuklugu uyarisi var.
 6. Repo temizligi iyi, ancak raw dataset ve model dosyalari localde bulundugu icin upload oncesi `git status --ignored` kontrolu zorunlu.
 
+## Aşama 9 Ek Kontrol: Device-Class-Aware Detection
+
+Denetim tarihi: 2026-05-13
+
+Bu turda device-class-aware detection mimarisi final regression kapsamına alındı. Rule-based classifier, scanner metadata enrichment, typed `/devices` schema contract ve monitor class-aware flow scoring beraber doğrulandı.
+
+Kontrol edilen noktalar:
+
+- `DeviceResult` schema opsiyonel `device_class`, `device_class_confidence`, `device_class_evidence`, `device_class_method` alanlarını belgeliyor.
+- `/devices` ve `/devices/{ip}` response model tekrar tipli ve geriye uyumlu.
+- `asset_type` legacy alanı değiştirilmedi.
+- DB migration yapılmadı.
+- `sentinel_iot/ml/device_class_scoring.py` class-aware calibration wrapper olarak ayrıldı.
+- Base `flow_scorer.py` generic ML-score-to-risk scorer olarak kaldı.
+- Monitor live flow response alanları opsiyonel genişledi: `source_device_class`, `destination_device_class`, `class_aware_adjustment`, `class_aware_reasons`, `decision`, `decision_source`.
+- `decision` ve `severity` runtime explanation alanlarıdır; accuracy, precision, recall veya F1 metriği değildir.
+- CICIoT inference, model artifact, risk engine formülü ve frontend API sözleşmesi kırılmadı.
+
+Savunmada kullanılacak kısa açıklama:
+
+> Tek bir IoT odaklı model tüm cihaz tiplerine aynı şekilde uygulandığında client/browser trafiğinde false positive riski oluşabilir. Bu nedenle SentinelIoT önce cihazı rule-based sinyallerle `iot_device`, `client_device`, `network_infrastructure` veya `unknown` olarak sınıflandırır. Canlı flow scoring aşamasında bu sınıf bilgisi ML skorunu yeniden eğitmeden veya değiştirmeden, yalnızca açıklanabilir risk kalibrasyonu için kullanılır. Bu katman runtime başarı metriği üretmez; sadece risk kararının bağlamını ve nedenlerini daha doğru açıklar.

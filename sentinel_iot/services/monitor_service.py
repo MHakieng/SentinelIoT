@@ -9,8 +9,9 @@ from typing import Dict, Any, Optional
 from sentinel_iot.monitor.packet_capture import start_capture
 from sentinel_iot.monitor.feature_extractor import extract_features
 from sentinel_iot.ml.anomaly_model import AnomalyModel
-from sentinel_iot.ml.flow_scorer import score_flow
-from sentinel_iot.database.db import upsert_device, save_anomaly_log, save_risk_history
+from sentinel_iot.ml.device_classifier import classify_device
+from sentinel_iot.ml.device_class_scoring import score_flow_with_device_context
+from sentinel_iot.database.db import get_all_devices, upsert_device, save_anomaly_log, save_risk_history
 from sentinel_iot.services.context_risk_engine import ContextualRiskEngine
 from sentinel_iot.services.job_manager import JobManager
 
@@ -86,6 +87,64 @@ class MonitorService:
             return numeric if math.isfinite(numeric) else default
         except (TypeError, ValueError):
             return default
+
+    @staticmethod
+    def _device_class_context(devices_db: Dict[str, Any], ip: Any, prefix: str) -> Dict[str, Any]:
+        if not isinstance(devices_db, dict) or not ip:
+            return {}
+        device = devices_db.get(str(ip))
+        if not isinstance(device, dict):
+            return {}
+
+        context = {}
+        class_value = device.get("device_class")
+        confidence_value = device.get("device_class_confidence")
+        if class_value:
+            context[f"{prefix}_device_class"] = class_value
+        if confidence_value is not None:
+            context[f"{prefix}_device_class_confidence"] = MonitorService._safe_float(confidence_value)
+        return context
+
+    @staticmethod
+    def _build_device_context_db(devices_db: Dict[str, Any]) -> Dict[str, Any]:
+        merged = {}
+        if isinstance(devices_db, dict):
+            merged.update({str(ip): device for ip, device in devices_db.items() if isinstance(device, dict)})
+
+        try:
+            for device in get_all_devices():
+                ip = device.get("ip")
+                if not ip:
+                    continue
+                existing = dict(merged.get(str(ip), {}))
+                existing.update(device)
+                if not existing.get("device_class"):
+                    try:
+                        classification = classify_device(existing)
+                        existing.update({
+                            "device_class": classification.get("device_class", "unknown"),
+                            "device_class_confidence": classification.get("confidence", 0.0),
+                            "device_class_evidence": classification.get("evidence", []),
+                            "device_class_method": classification.get("method", "rule_based"),
+                        })
+                    except Exception:
+                        existing.update({
+                            "device_class": "unknown",
+                            "device_class_confidence": 0.0,
+                            "device_class_evidence": ["Device classification failed during monitor context lookup"],
+                            "device_class_method": "rule_based",
+                        })
+                merged[str(ip)] = existing
+        except Exception as exc:
+            logger.warning("Could not load persisted devices for monitor context: %s", exc)
+
+        return merged
+
+    def _flow_with_device_context(self, flow: Dict[str, Any], devices_db: Dict[str, Any]) -> Dict[str, Any]:
+        enriched = dict(flow)
+        enriched.update(self._device_class_context(devices_db, flow.get("src_ip"), "source"))
+        enriched.update(self._device_class_context(devices_db, flow.get("dst_ip"), "destination"))
+        return enriched
 
     def get_runtime_status(self) -> Dict[str, Any]:
         active_job = self.job_manager.get_active_job("sniffing")
@@ -179,7 +238,7 @@ class MonitorService:
             for flow in self.live_flows.values():
                 snapshot = dict(flow.get("scoring_breakdown") or {})
                 if not snapshot:
-                    snapshot = score_flow(
+                    snapshot = score_flow_with_device_context(
                         flow,
                         ml_raw_score=self._safe_float(flow.get("ml_raw_score", flow.get("anomaly_score"))),
                         ml_anomaly_score=self._safe_float(flow.get("ml_anomaly_score", flow.get("anomaly_score"))),
@@ -280,7 +339,7 @@ class MonitorService:
                             self.live_flows = dict(sorted_flows[:self.flow_buffer_limit])
 
                     if features:
-                        anomalies = self._score_features_and_collect_anomalies(features)
+                        anomalies = self._score_features_and_collect_anomalies(features, devices_db)
                         self._process_anomalies(anomalies, devices_db)
                         
                         # CanlÄ± akÄ±ÅŸ ile sÃ¼rekli Ã¶ÄŸrenmeyi (sÃ¼rekli eÄŸitim) asenkron olarak tetikle
@@ -394,33 +453,48 @@ class MonitorService:
                 continue
         return new_pkts
 
-    def _score_features_and_collect_anomalies(self, features):
+    def _score_features_and_collect_anomalies(self, features, devices_db=None):
         anomalies = []
+        devices_db = self._build_device_context_db(devices_db or {})
         for flow in features:
             analysis = self.anomaly_model.detect_anomaly(flow)
             ml_score = self._safe_float(analysis.get("score"))
             ml_raw_score = self._safe_float(analysis.get("raw_score"), default=ml_score)
-            scored = score_flow(flow, ml_raw_score=ml_raw_score, ml_anomaly_score=ml_score)
+            contextual_flow = self._flow_with_device_context(flow, devices_db)
+            scored = score_flow_with_device_context(contextual_flow, ml_raw_score=ml_raw_score, ml_anomaly_score=ml_score)
             fid = flow.get("flow_id")
 
             with self._lock:
                 if fid and fid in self.live_flows:
+                    for field in (
+                        "source_device_class",
+                        "source_device_class_confidence",
+                        "destination_device_class",
+                        "destination_device_class_confidence",
+                    ):
+                        if field in contextual_flow:
+                            self.live_flows[fid][field] = contextual_flow[field]
                     self.live_flows[fid]["ml_raw_score"] = ml_raw_score
                     self.live_flows[fid]["ml_anomaly_score"] = ml_score
                     self.live_flows[fid]["anomaly_score"] = ml_score
                     self.live_flows[fid]["confidence"] = self._safe_float(analysis.get("confidence"), default=ml_score)
-                    self.live_flows[fid]["label"] = 1 if analysis.get("label") == "anomaly" else 0
+                    calibrated_anomaly = scored.get("decision") == "anomaly"
+                    self.live_flows[fid]["label"] = 1 if calibrated_anomaly else 0
                     self.live_flows[fid]["reward_points"] = scored["reward_points"]
                     self.live_flows[fid]["penalty_points"] = scored["penalty_points"]
                     self.live_flows[fid]["final_flow_risk"] = scored["final_flow_risk"]
                     self.live_flows[fid]["severity"] = scored["severity"]
+                    self.live_flows[fid]["class_aware_adjustment"] = scored["class_aware_adjustment"]
+                    self.live_flows[fid]["class_aware_reasons"] = scored["class_aware_reasons"]
+                    self.live_flows[fid]["decision"] = scored["decision"]
+                    self.live_flows[fid]["decision_source"] = scored["decision_source"]
                     self.live_flows[fid]["reasons"] = scored["reasons"]
                     self.live_flows[fid]["features"] = scored["features"]
                     self.live_flows[fid]["scoring_breakdown"] = scored
                     if analysis.get("model"):
                         self.live_flows[fid]["model"] = analysis.get("model")
 
-            if analysis.get("label") == "anomaly":
+            if scored.get("decision") == "anomaly":
                 anomalies.append({
                     "flow_id": fid,
                     "target": flow.get("dst_ip", "unknown"),

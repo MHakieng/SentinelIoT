@@ -1,3 +1,5 @@
+import { getFlowFinalRisk, isHighRiskFlow } from '../../lib/flowRisk'
+
 const DEFAULT_LIMIT = 14
 
 const parseEventTime = (value) => {
@@ -175,24 +177,28 @@ const buildAnomalyEvents = (anomalies = [], selectedIp = null, liveFlows = []) =
   }))
 
   const liveEvents = liveFlows
-    .filter((flow) => flow.label === 1 || Number(flow.anomaly_score || 0) >= 0.5)
+    .filter(isHighRiskFlow)
     .slice(0, 5)
-    .map((flow, index) => standardizeEvent({
-      id: `live-flow-anomaly-${flow.flow_id || index}`,
-      timestamp: toIsoTimestamp(flow.timestamp || flow.end_time || flow.start_time, new Date()),
-      type: 'ANOMALY_DETECTED',
-      severity: Number(flow.anomaly_score || 0) >= 0.8 ? 'critical' : 'medium',
-      title: 'Canlı akış anomalisi',
-      description: `${flow.src_ip}:${flow.src_port || '?'} -> ${flow.dst_ip}:${flow.dst_port || '?'} skor ${(Number(flow.anomaly_score || 0) * 100).toFixed(1)}%.`,
-      device_ip: flow.src_ip || flow.dst_ip || null,
-      source: 'monitor_flows',
-      evidence: {
-        flow_id: flow.flow_id || null,
-        protocol: flow.protocol_name || flow.protocol || null,
-        anomaly_score: flow.anomaly_score ?? null,
-        label: flow.label ?? null,
-      },
-    }))
+    .map((flow, index) => {
+      const finalRisk = getFlowFinalRisk(flow)
+      return standardizeEvent({
+        id: `live-flow-risk-${flow.flow_id || index}`,
+        timestamp: toIsoTimestamp(flow.timestamp || flow.end_time || flow.start_time, new Date()),
+        type: 'FLOW_RISK_REPORTED',
+        severity: finalRisk >= 80 ? 'critical' : 'medium',
+        title: 'Canlı akış risk sinyali',
+        description: `${flow.src_ip}:${flow.src_port || ''} -> ${flow.dst_ip}:${flow.dst_port || ''} kalibre risk ${finalRisk.toFixed(1)}%.`,
+        device_ip: flow.src_ip || flow.dst_ip || null,
+        source: 'monitor_flows',
+        evidence: {
+          flow_id: flow.flow_id || null,
+          protocol: flow.protocol_name || flow.protocol || null,
+          anomaly_score: flow.anomaly_score ?? null,
+          final_flow_risk: flow.final_flow_risk ?? null,
+          label: flow.label ?? null,
+        },
+      })
+    })
 
   return [...deviceEvents, ...liveEvents]
 }

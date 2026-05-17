@@ -39,6 +39,14 @@ class FlowMetrics(FlowBase):
     final_flow_risk: float = 0.0
     severity: str = "low"
     reasons: List[str] = Field(default_factory=list)
+    source_device_class: Optional[str] = None
+    source_device_class_confidence: Optional[float] = None
+    destination_device_class: Optional[str] = None
+    destination_device_class_confidence: Optional[float] = None
+    class_aware_adjustment: Optional[float] = None
+    class_aware_reasons: List[str] = Field(default_factory=list)
+    decision: Optional[str] = None
+    decision_source: Optional[str] = None
     features: Dict[str, Any] = Field(default_factory=dict)
     scoring_breakdown: Optional[Dict[str, Any]] = None
     label: int = 0
