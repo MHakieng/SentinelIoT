@@ -42,7 +42,7 @@ def get_topology(service: MonitorService = Depends(get_monitor_service)):
     nodes = [
         TopologyNode(
             id="sentinel-gw",
-            label="Sentinel Gateway",
+            label="Ağ Geçidi",
             type="gateway",
             ip="192.168.1.1",
             risk_score=0.0,

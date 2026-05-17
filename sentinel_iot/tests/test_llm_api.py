@@ -131,7 +131,7 @@ class FakeContextService:
                 "service": "https",
                 "service_product": "nginx",
                 "service_version": "1.24.0",
-                "service_http_title": "Sentinel Gateway",
+                "service_http_title": "Gateway Admin Panel",
                 "cvss_score": 9.8,
                 "local_description": "A known weakness is associated with the exposed HTTPS service.",
                 "total_cves_on_device": 3,
@@ -278,7 +278,7 @@ def test_cve_explanation_endpoint_returns_typed_payload():
                     service=request.service or "https",
                     service_product="nginx",
                     service_version="1.24.0",
-                    service_http_title="Sentinel Gateway",
+                    service_http_title="Gateway Admin Panel",
                     cvss_score=9.8,
                     local_description="A known weakness is associated with the exposed HTTPS service.",
                     total_cves_on_device=3,
@@ -323,7 +323,7 @@ def test_cve_context_service_extracts_cvss_and_description_from_nested_scan_data
                 "service": "https",
                 "product": "nginx",
                 "version": "1.24.0",
-                "http_title": "Sentinel Gateway",
+                "http_title": "Gateway Admin Panel",
                 "cves": ["CVE-2024-9999"],
                 "scripts": {
                     "vulners": {
